@@ -4,7 +4,13 @@ const path = require('path');
 
 module.exports = (req, res) => {
   try {
-    const openapiPath = path.join(__dirname, '../public/openapi.json');
+    // Try the simplified version first, fallback to full version
+    let openapiPath = path.join(__dirname, '../public/openapi-simple.json');
+    
+    if (!fs.existsSync(openapiPath)) {
+      openapiPath = path.join(__dirname, '../public/openapi.json');
+    }
+    
     const openapiContent = fs.readFileSync(openapiPath, 'utf8');
     
     res.setHeader('Content-Type', 'application/json');

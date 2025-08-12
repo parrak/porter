@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Flight Booking Agent - API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .test-section { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        .endpoint { font-family: monospace; background: #e9ecef; padding: 5px; border-radius: 3px; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 10px; padding: 10px; background: white; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>✈️ Flight Booking Agent - API Test</h1>
+    <p>Test your deployed API endpoints to ensure they're working correctly.</p>
+    
+    <div class="test-section">
+        <h3>🔍 Test Health Endpoint</h3>
+        <p><span class="endpoint">GET /health</span></p>
+        <button onclick="testHealth()">Test Health</button>
+        <div id="health-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>📋 Test OpenAPI Endpoint</h3>
+        <p><span class="endpoint">GET /openapi.json</span></p>
+        <button onclick="testOpenAPI()">Test OpenAPI</button>
+        <div id="openapi-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>🚀 Test ChatGPT Endpoint</h3>
+        <p><span class="endpoint">POST /api/chatgpt</span></p>
+        <button onclick="testChatGPT()">Test ChatGPT</button>
+        <div id="chatgpt-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>✈️ Test Flight Search</h3>
+        <p><span class="endpoint">POST /api/search-flights</span></p>
+        <button onclick="testFlightSearch()">Test Flight Search</button>
+        <div id="flight-result" class="result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://porter-gcdnzaqo6-rakesh-paridas-projects.vercel.app';
+        
+        async function testHealth() {
+            const resultDiv = document.getElementById('health-result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                resultDiv.innerHTML = `<span class="success">✅ Success!</span><br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+        
+        async function testOpenAPI() {
+            const resultDiv = document.getElementById('openapi-result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/openapi.json`);
+                const data = await response.json();
+                resultDiv.innerHTML = `<span class="success">✅ Success!</span><br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+        
+        async function testChatGPT() {
+            const resultDiv = document.getElementById('chatgpt-result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/chatgpt`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: "I need a flight from Seattle to Vancouver tomorrow",
+                        userId: "test_user_123"
+                    })
+                });
+                const data = await response.json();
+                resultDiv.innerHTML = `<span class="success">✅ Success!</span><br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+        
+        async function testFlightSearch() {
+            const resultDiv = document.getElementById('flight-result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/search-flights`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from: "SEA",
+                        to: "YVR",
+                        date: "2025-01-15",
+                        passengers: 1,
+                        userId: "test_user_123"
+                    })
+                });
+                const data = await response.json();
+                resultDiv.innerHTML = `<span class="success">✅ Success!</span><br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>

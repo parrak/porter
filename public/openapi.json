@@ -11,12 +11,8 @@
   },
   "servers": [
     {
-      "url": "https://your-deployed-api-url.com",
+      "url": "https://porter-gcdnzaqo6-rakesh-paridas-projects.vercel.app",
       "description": "Production server"
-    },
-    {
-      "url": "http://localhost:3000",
-      "description": "Local development server"
     }
   ],
   "paths": {
