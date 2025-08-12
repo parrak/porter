@@ -1,7 +1,16 @@
 // ChatGPT API endpoint for Vercel
-const axios = require('axios');
-
 module.exports = async (req, res) => {
+  // Set CORS headers to allow all origins
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // Handle preflight OPTIONS request
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -13,8 +22,7 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    // For now, return a mock response since we can't access the full web-api.js
-    // In production, you'd want to integrate with your actual flight search logic
+    // Mock flight search response for testing
     const mockResponse = {
       success: true,
       message: `I received your flight request: "${message}". This is a test response from your deployed API.`,
