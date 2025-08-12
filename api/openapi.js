@@ -4,11 +4,13 @@ const path = require('path');
 
 module.exports = (req, res) => {
   try {
-    // Try the simplified version first, fallback to full version
-    let openapiPath = path.join(__dirname, '../public/openapi-simple.json');
+    // Always serve the simplified, GPT-5 compatible version
+    const openapiPath = path.join(__dirname, '../public/openapi-simple.json');
     
     if (!fs.existsSync(openapiPath)) {
-      openapiPath = path.join(__dirname, '../public/openapi.json');
+      return res.status(404).json({
+        error: 'OpenAPI specification not found'
+      });
     }
     
     const openapiContent = fs.readFileSync(openapiPath, 'utf8');
