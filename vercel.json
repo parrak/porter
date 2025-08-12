@@ -1,16 +1,11 @@
 {
   "version": 2,
-  "functions": {
-    "api/index.js": {
-      "runtime": "nodejs18.x"
-    },
-    "api/health.js": {
-      "runtime": "nodejs18.x"
-    },
-    "api/openapi.js": {
-      "runtime": "nodejs18.x"
+  "builds": [
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
     }
-  },
+  ],
   "routes": [
     {
       "src": "/health",
