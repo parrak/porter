@@ -1,0 +1,13 @@
+# API Keys for Flight Booking Agent
+# Copy this file to .env and fill in your actual API keys
+
+# OpenAI API Key (for ChatGPT integration)
+# Get from: https://platform.openai.com/api-keys
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Amadeus API Credentials (for real flight data and booking)
+# Get from: https://developers.amadeus.com/
+AMADEUS_CLIENT_ID=your_amadeus_client_id_here
+AMADEUS_CLIENT_SECRET=your_amadeus_client_secret_here
+
+# Note: Keep your .env file secure and never commit it to version control 

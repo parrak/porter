@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: flight-booking-agent
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node web-api.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      # Add your API keys here or in Render dashboard
+      # - key: OPENAI_API_KEY
+      #   sync: false
+      # - key: AMADEUS_CLIENT_ID
+      #   sync: false
+      # - key: AMADEUS_CLIENT_SECRET
+      #   sync: false
+    healthCheckPath: /health
+    autoDeploy: true

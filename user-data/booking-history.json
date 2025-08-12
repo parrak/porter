@@ -1,0 +1,71 @@
+[
+  {
+    "id": "booking_1755034195176",
+    "timestamp": "2025-08-12T21:29:55.177Z",
+    "userId": "user_123",
+    "flightDetails": {
+      "from": "SEA",
+      "to": "YVR",
+      "date": "2025-01-15",
+      "airline": "WS",
+      "flightNumber": "6910",
+      "class": "ECONOMY",
+      "price": {
+        "total": "281.32",
+        "currency": "USD"
+      }
+    },
+    "passengerCount": 1,
+    "status": "CONFIRMED",
+    "preferences": {
+      "seatPreference": "WINDOW"
+    },
+    "notes": ""
+  },
+  {
+    "id": "booking_1755034195182",
+    "timestamp": "2025-08-12T21:29:55.182Z",
+    "userId": "user_123",
+    "flightDetails": {
+      "from": "YVR",
+      "to": "SEA",
+      "date": "2025-01-20",
+      "airline": "WS",
+      "flightNumber": "6911",
+      "class": "ECONOMY",
+      "price": {
+        "total": "295.50",
+        "currency": "USD"
+      }
+    },
+    "passengerCount": 1,
+    "status": "CONFIRMED",
+    "preferences": {
+      "seatPreference": "WINDOW"
+    },
+    "notes": ""
+  },
+  {
+    "id": "booking_1755034195188",
+    "timestamp": "2025-08-12T21:29:55.188Z",
+    "userId": "user_123",
+    "flightDetails": {
+      "from": "SEA",
+      "to": "LAX",
+      "date": "2025-02-10",
+      "airline": "AS",
+      "flightNumber": "1234",
+      "class": "BUSINESS",
+      "price": {
+        "total": "450.00",
+        "currency": "USD"
+      }
+    },
+    "passengerCount": 1,
+    "status": "CONFIRMED",
+    "preferences": {
+      "seatPreference": "AISLE"
+    },
+    "notes": ""
+  }
+]

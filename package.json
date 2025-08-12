@@ -1,0 +1,31 @@
+{
+  "name": "flight-search-app",
+  "version": "1.0.0",
+  "description": "Flight search application using Amadeus API",
+  "main": "flight-search.js",
+  "scripts": {
+    "start": "node flight-search.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "run": "node main.js"
+  },
+  "dependencies": {
+    "amadeus": "^8.1.0",
+    "axios": "^1.6.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "keywords": [
+    "amadeus",
+    "flight",
+    "travel",
+    "api"
+  ],
+  "author": "",
+  "license": "ISC"
+}

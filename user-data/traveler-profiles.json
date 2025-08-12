@@ -1,0 +1,71 @@
+{
+  "user_123": {
+    "id": "user_123",
+    "createdAt": "2025-08-12T21:29:55.155Z",
+    "updatedAt": "2025-08-12T21:29:55.213Z",
+    "personalInfo": {
+      "firstName": "John",
+      "lastName": "Doe",
+      "dateOfBirth": "1990-05-15",
+      "gender": "MALE",
+      "nationality": "US",
+      "email": "john.doe@example.com",
+      "phone": "+1-555-123-4567"
+    },
+    "documents": [],
+    "preferences": {
+      "seatPreference": "AISLE",
+      "mealPreference": "STANDARD",
+      "specialAssistance": [
+        "WHEELCHAIR"
+      ],
+      "loyaltyPrograms": [
+        "DELTA_SKYMILES",
+        "AMERICAN_AADVANTAGE"
+      ]
+    },
+    "frequentRoutes": [
+      {
+        "route": "SEA-YVR",
+        "from": "SEA",
+        "to": "YVR",
+        "count": 2,
+        "firstTraveled": "2025-08-12T21:29:55.179Z",
+        "lastTraveled": "2025-08-12T21:29:55.196Z"
+      },
+      {
+        "route": "SEA-LAX",
+        "from": "SEA",
+        "to": "LAX",
+        "count": 2,
+        "firstTraveled": "2025-08-12T21:29:55.190Z",
+        "lastTraveled": "2025-08-12T21:29:55.201Z"
+      },
+      {
+        "route": "YVR-SEA",
+        "from": "YVR",
+        "to": "SEA",
+        "count": 1,
+        "firstTraveled": "2025-08-12T21:29:55.184Z",
+        "lastTraveled": "2025-08-12T21:29:55.184Z"
+      },
+      {
+        "route": "SEA-NRT",
+        "from": "SEA",
+        "to": "NRT",
+        "count": 1,
+        "firstTraveled": "2025-08-12T21:29:55.217Z",
+        "lastTraveled": "2025-08-12T21:29:55.217Z"
+      }
+    ],
+    "budgetPreferences": {
+      "preferredAirlines": [
+        "WS",
+        "AS",
+        "JL"
+      ],
+      "maxBudget": 500,
+      "preferredClass": "FIRST"
+    }
+  }
+}

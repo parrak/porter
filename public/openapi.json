@@ -1,0 +1,568 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Flight Booking Agent API",
+    "description": "Intelligent flight booking assistant with user preference learning and real-time flight search capabilities. This API allows ChatGPT to help users find flights, remember preferences, and provide personalized travel recommendations.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Flight Booking Agent Support",
+      "email": "support@flightbookingagent.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://your-deployed-api-url.com",
+      "description": "Production server"
+    },
+    {
+      "url": "http://localhost:3000",
+      "description": "Local development server"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "Check if the API is running and healthy",
+        "operationId": "healthCheck",
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "healthy"
+                    },
+                    "service": {
+                      "type": "string",
+                      "example": "Flight Booking Agent API"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/chatgpt": {
+      "post": {
+        "summary": "ChatGPT Flight Search",
+        "description": "Main endpoint for ChatGPT to interact with the flight booking agent. Processes natural language requests and returns flight search results.",
+        "operationId": "chatgptFlightSearch",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "description": "User's natural language flight request (e.g., 'I need a flight from Seattle to Vancouver tomorrow')",
+                    "example": "I need a flight from Seattle to Vancouver tomorrow"
+                  },
+                  "userId": {
+                    "type": "string",
+                    "description": "Optional user ID for personalization and preference learning",
+                    "example": "user_123"
+                  }
+                },
+                "required": ["message"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Flight search results and agent response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "description": "Whether the request was successful"
+                    },
+                    "intent": {
+                      "type": "object",
+                      "description": "Extracted flight booking intent",
+                      "properties": {
+                        "from": {
+                          "type": "string",
+                          "description": "Departure city/airport code"
+                        },
+                        "to": {
+                          "type": "string",
+                          "description": "Destination city/airport code"
+                        },
+                        "date": {
+                          "type": "string",
+                          "description": "Travel date in YYYY-MM-DD format"
+                        },
+                        "passengers": {
+                          "type": "integer",
+                          "description": "Number of passengers"
+                        },
+                        "class": {
+                          "type": "string",
+                          "description": "Travel class (ECONOMY, BUSINESS, FIRST)"
+                        }
+                      }
+                    },
+                    "response": {
+                      "type": "string",
+                      "description": "Formatted response for ChatGPT to display to user"
+                    },
+                    "flights": {
+                      "type": "integer",
+                      "description": "Number of flights found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/search-flights": {
+      "post": {
+        "summary": "Direct Flight Search",
+        "description": "Direct flight search with specific parameters. Useful for programmatic access or when exact parameters are known.",
+        "operationId": "directFlightSearch",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "description": "Departure city/airport code (e.g., 'SEA', 'JFK')",
+                    "example": "SEA"
+                  },
+                  "to": {
+                    "type": "string",
+                    "description": "Destination city/airport code (e.g., 'YVR', 'LHR')",
+                    "example": "YVR"
+                  },
+                  "date": {
+                    "type": "string",
+                    "description": "Travel date in YYYY-MM-DD format",
+                    "example": "2025-01-15"
+                  },
+                  "passengers": {
+                    "type": "integer",
+                    "description": "Number of passengers (default: 1)",
+                    "example": 1
+                  },
+                  "travelClass": {
+                    "type": "string",
+                    "description": "Travel class (ECONOMY, BUSINESS, FIRST)",
+                    "example": "ECONOMY"
+                  },
+                  "userId": {
+                    "type": "string",
+                    "description": "Optional user ID for personalization",
+                    "example": "user_123"
+                  }
+                },
+                "required": ["from", "to"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Flight search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "searchParams": {
+                      "type": "object",
+                      "properties": {
+                        "from": { "type": "string" },
+                        "to": { "type": "string" },
+                        "date": { "type": "string" },
+                        "passengers": { "type": "integer" },
+                        "travelClass": { "type": "string" }
+                      }
+                    },
+                    "flightsFound": {
+                      "type": "integer",
+                      "description": "Number of flights found"
+                    },
+                    "flights": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "flightNumber": { "type": "integer" },
+                          "route": { "type": "string" },
+                          "time": { "type": "string" },
+                          "stops": { "type": "string" },
+                          "price": { "type": "string" },
+                          "seats": { "type": "integer" },
+                          "airline": { "type": "string" }
+                        }
+                      }
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Human-readable summary of results"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/profile/{userId}": {
+      "get": {
+        "summary": "Get User Profile",
+        "description": "Retrieve user profile information including preferences, frequent routes, and booking history.",
+        "operationId": "getUserProfile",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier for the user",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User profile information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "profile": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "personalInfo": { "type": "object" },
+                        "preferences": { "type": "object" },
+                        "frequentRoutes": { "type": "array" },
+                        "budgetPreferences": { "type": "object" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Profile not found"
+          }
+        }
+      }
+    },
+    "/api/suggestions/{userId}": {
+      "get": {
+        "summary": "Get Smart Suggestions",
+        "description": "Retrieve personalized flight suggestions based on user's booking history and preferences.",
+        "operationId": "getSmartSuggestions",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier for the user",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Smart suggestions for the user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "suggestions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": { "type": "string" },
+                          "title": { "type": "string" },
+                          "text": { "type": "string" },
+                          "action": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stats/{userId}": {
+      "get": {
+        "summary": "Get User Statistics",
+        "description": "Retrieve user travel statistics including total bookings, favorite routes, and spending patterns.",
+        "operationId": "getUserStats",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier for the user",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User travel statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "stats": {
+                      "type": "object",
+                      "properties": {
+                        "totalBookings": { "type": "integer" },
+                        "favoriteRoute": { "type": "object" },
+                        "preferredClass": { "type": "string" },
+                        "totalSpent": { "type": "number" },
+                        "memberSince": { "type": "string" },
+                        "lastTravel": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/routes/{userId}": {
+      "get": {
+        "summary": "Get Popular Routes",
+        "description": "Retrieve user's most frequently traveled routes based on booking history.",
+        "operationId": "getPopularRoutes",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier for the user",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User's popular travel routes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "routes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "route": { "type": "string" },
+                          "count": { "type": "integer" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/booking": {
+      "post": {
+        "summary": "Add Booking to History",
+        "description": "Add a completed flight booking to the user's history for preference learning.",
+        "operationId": "addBookingToHistory",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "description": "User identifier",
+                    "required": true
+                  },
+                  "from": {
+                    "type": "string",
+                    "description": "Departure city/airport"
+                  },
+                  "to": {
+                    "type": "string",
+                    "description": "Destination city/airport"
+                  },
+                  "date": {
+                    "type": "string",
+                    "description": "Travel date"
+                  },
+                  "airline": {
+                    "type": "string",
+                    "description": "Airline code"
+                  },
+                  "class": {
+                    "type": "string",
+                    "description": "Travel class"
+                  },
+                  "price": {
+                    "type": "object",
+                    "properties": {
+                      "total": { "type": "string" },
+                      "currency": { "type": "string" }
+                    }
+                  }
+                },
+                "required": ["userId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Booking added successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "booking": { "type": "object" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Flight": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "route": { "type": "string" },
+          "time": { "type": "string" },
+          "stops": { "type": "string" },
+          "price": { "type": "string" },
+          "seats": { "type": "integer" },
+          "airline": { "type": "string" }
+        }
+      },
+      "UserProfile": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "personalInfo": { "type": "object" },
+          "preferences": { "type": "object" },
+          "frequentRoutes": { "type": "array" },
+          "budgetPreferences": { "type": "object" }
+        }
+      },
+      "FlightIntent": {
+        "type": "object",
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "date": { "type": "string" },
+          "passengers": { "type": "integer" },
+          "class": { "type": "string" }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Flight Search",
+      "description": "Endpoints for searching and retrieving flight information"
+    },
+    {
+      "name": "User Management",
+      "description": "Endpoints for managing user profiles and preferences"
+    },
+    {
+      "name": "ChatGPT Integration",
+      "description": "Primary endpoint for ChatGPT to interact with the flight booking agent"
+    }
+  ]
+}

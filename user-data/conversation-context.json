@@ -1,0 +1,88 @@
+{
+  "user_123": [
+    {
+      "timestamp": "2025-08-12T21:29:55.193Z",
+      "userInput": "I need a flight from Seattle to Vancouver",
+      "extractedIntent": {
+        "from": "SEA",
+        "to": "YVR",
+        "date": "2025-01-15",
+        "passengers": 1,
+        "class": "economy"
+      },
+      "suggestedFlights": [
+        {
+          "id": "flight_1",
+          "price": {
+            "total": "281.32"
+          },
+          "validatingAirlineCodes": [
+            "WS"
+          ]
+        }
+      ],
+      "userResponse": "Yes, that looks good",
+      "bookingDecision": {
+        "flightId": "flight_1",
+        "confirmed": true
+      },
+      "sessionId": "session_1755034195193"
+    },
+    {
+      "timestamp": "2025-08-12T21:29:55.199Z",
+      "userInput": "Book me a business class flight to LA",
+      "extractedIntent": {
+        "from": "SEA",
+        "to": "LAX",
+        "date": "2025-02-10",
+        "passengers": 1,
+        "class": "business"
+      },
+      "suggestedFlights": [
+        {
+          "id": "flight_2",
+          "price": {
+            "total": "450.00"
+          },
+          "validatingAirlineCodes": [
+            "AS"
+          ]
+        }
+      ],
+      "userResponse": "Perfect, book it",
+      "bookingDecision": {
+        "flightId": "flight_2",
+        "confirmed": true
+      },
+      "sessionId": "session_1755034195199"
+    },
+    {
+      "timestamp": "2025-08-12T21:29:55.216Z",
+      "userInput": "Find me a first class flight to Tokyo",
+      "extractedIntent": {
+        "from": "SEA",
+        "to": "NRT",
+        "date": "2025-03-15",
+        "passengers": 1,
+        "class": "first"
+      },
+      "suggestedFlights": [
+        {
+          "id": "flight_3",
+          "price": {
+            "total": "1200.00"
+          },
+          "validatingAirlineCodes": [
+            "JL"
+          ]
+        }
+      ],
+      "userResponse": "Book the first class option",
+      "bookingDecision": {
+        "flightId": "flight_3",
+        "confirmed": true
+      },
+      "sessionId": "session_1755034195216"
+    }
+  ]
+}
