@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.local
+
+# User data
+user-data/
+
+# Test files
+*.test.js
+*.spec.js
+
+# Documentation
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

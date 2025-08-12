@@ -2,9 +2,11 @@
   "name": "flight-search-app",
   "version": "1.0.0",
   "description": "Flight search application using Amadeus API",
-  "main": "flight-search.js",
+  "main": "web-api.js",
   "scripts": {
-    "start": "node flight-search.js",
+    "start": "node web-api.js",
+    "dev": "node web-api.js",
+    "build": "echo 'No build step required'",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
