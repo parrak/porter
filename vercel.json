@@ -8,6 +8,22 @@
   ],
   "routes": [
     {
+      "src": "/",
+      "dest": "/web-api.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/web-api.js"
+    },
+    {
+      "src": "/health",
+      "dest": "/web-api.js"
+    },
+    {
+      "src": "/openapi.json",
+      "dest": "/web-api.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "/web-api.js"
     }
