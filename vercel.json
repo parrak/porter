@@ -2,38 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "web-api.js",
+      "src": "api/index.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/",
-      "dest": "/web-api.js"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "/web-api.js"
-    },
-    {
-      "src": "/health",
-      "dest": "/web-api.js"
-    },
-    {
-      "src": "/openapi.json",
-      "dest": "/web-api.js"
-    },
-    {
       "src": "/(.*)",
-      "dest": "/web-api.js"
+      "dest": "/api/index.js"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  },
-  "functions": {
-    "web-api.js": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }

@@ -2,7 +2,7 @@
   "name": "flight-search-app",
   "version": "1.0.0",
   "description": "Flight search application using Amadeus API",
-  "main": "web-api.js",
+  "main": "api/index.js",
   "scripts": {
     "start": "node web-api.js",
     "dev": "node web-api.js",
