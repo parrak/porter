@@ -21,6 +21,9 @@ A real-time flight search and booking agent using Amadeus API and ChatGPT integr
 
 This application is configured for deployment on Vercel with Custom GPT support.
 
+**Live URL**: https://porter-gcdnzaqo6-rakesh-paridas-projects.vercel.app/
+**OpenAPI Spec**: https://porter-gcdnzaqo6-rakesh-paridas-projects.vercel.app/openapi.json
+
 **Last updated**: 2025-01-27 15:30 UTC
 
 ## API Endpoints
