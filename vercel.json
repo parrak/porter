@@ -1,8 +1,6 @@
 {
   "version": 2,
   "public": true,
-  "auth": false,
-  "passwordProtection": false,
   "builds": [
     {
       "src": "api/**/*.js",
