@@ -1,13 +1,81 @@
-// Flight intent parser function
-function parseFlightIntent(message) {
+// Flight intent parser using ChatGPT
+async function parseFlightIntentWithChatGPT(message) {
+  try {
+    // Use ChatGPT to parse the flight intent
+    const prompt = `Parse this flight request and return ONLY a JSON object with the following structure:
+{
+  "from": "airport_code",
+  "to": "airport_code", 
+  "date": "YYYY-MM-DD",
+  "passengers": number,
+  "class": "economy|business|first"
+}
+
+Flight request: "${message}"
+
+Rules:
+- Convert city names to airport codes (e.g., "New York" → "JFK", "Los Angeles" → "LAX")
+- Parse dates in any format to YYYY-MM-DD
+- Default to economy class if not specified
+- Default to 1 passenger if not specified
+- Use today's date if no date specified
+- Return ONLY the JSON, no other text`;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a flight intent parser. Return only valid JSON.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.1,
+        max_tokens: 150
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices[0].message.content.trim();
+    
+    // Extract JSON from the response
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No valid JSON found in response');
+    }
+    
+    const intent = JSON.parse(jsonMatch[0]);
+    
+    // Validate required fields
+    if (!intent.from || !intent.to) {
+      throw new Error('Missing required fields: from, to');
+    }
+    
+    return intent;
+  } catch (error) {
+    console.error('ChatGPT intent parsing failed:', error);
+    
+    // Fallback to basic parsing if ChatGPT fails
+    return parseFlightIntentFallback(message);
+  }
+}
+
+// Fallback intent parser (simplified version of the original)
+function parseFlightIntentFallback(message) {
   const lowerMessage = message.toLowerCase();
-  
-  // Default values
-  let from = "SEA";
-  let to = "YVR";
-  let date = new Date().toISOString().split('T')[0]; // Today
-  let passengers = 1;
-  let travelClass = "economy";
   
   // Extract airport codes (simple pattern matching)
   const airportPattern = /(?:from|departing|leaving)\s+([A-Z]{3})/i;
@@ -16,8 +84,8 @@ function parseFlightIntent(message) {
   const fromMatch = message.match(airportPattern);
   const toMatch = message.match(toPattern);
   
-  if (fromMatch) from = fromMatch[1].toUpperCase();
-  if (toMatch) to = toMatch[1].toUpperCase();
+  let from = fromMatch ? fromMatch[1].toUpperCase() : "JFK";
+  let to = toMatch ? toMatch[1].toUpperCase() : "LAX";
   
   // Extract date patterns
   const datePatterns = [
@@ -27,6 +95,7 @@ function parseFlightIntent(message) {
     /(?:on|for)\s+(next week)/i
   ];
   
+  let date = new Date().toISOString().split('T')[0]; // Today
   for (const pattern of datePatterns) {
     const match = message.match(pattern);
     if (match) {
@@ -48,11 +117,10 @@ function parseFlightIntent(message) {
   // Extract passenger count
   const passengerPattern = /(\d+)\s+(?:passenger|person|people)/i;
   const passengerMatch = message.match(passengerPattern);
-  if (passengerMatch) {
-    passengers = parseInt(passengerMatch[1]);
-  }
+  const passengers = passengerMatch ? parseInt(passengerMatch[1]) : 1;
   
   // Extract travel class
+  let travelClass = "economy";
   if (lowerMessage.includes("business")) travelClass = "business";
   if (lowerMessage.includes("first")) travelClass = "first";
   
@@ -84,8 +152,8 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    // Parse flight search intent from natural language
-    const flightIntent = parseFlightIntent(message);
+    // Parse flight search intent using ChatGPT
+    const flightIntent = await parseFlightIntentWithChatGPT(message);
     
     // Generate realistic flight search response
     const mockResponse = {
@@ -94,23 +162,23 @@ module.exports = async (req, res) => {
       intent: flightIntent,
       flights: [
         {
-          flightNumber: "AC123",
+          flightNumber: "AA123",
           route: `${flightIntent.from} → ${flightIntent.to}`,
           time: "10:00 AM - 11:30 AM",
           stops: "Direct",
           price: "$299",
           seats: 4,
-          airline: "Air Canada",
+          airline: "American Airlines",
           class: flightIntent.class
         },
         {
-          flightNumber: "WS456",
+          flightNumber: "DL456",
           route: `${flightIntent.from} → ${flightIntent.to}`,
           time: "2:00 PM - 3:30 PM", 
           stops: "1 stop",
           price: "$249",
           seats: 2,
-          airline: "WestJet",
+          airline: "Delta Airlines",
           class: flightIntent.class
         }
       ],
