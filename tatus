@@ -1,0 +1,5 @@
+[33mb066218[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mdeploy[m[33m, [m[1;31morigin/deploy[m[33m)[m Update all URLs to use porter-preview.vercel.app domain consistently
+[33mff048cb[m Make OpenAPI specification use static URI https://porter-psi.vercel.app/ for all URLs and OAuth endpoints
+[33m16fef0b[m Fix OpenAPI specification: consolidate components section, make OAuth URLs dynamic, and fix JSON structure for ChatGPT validation
+[33m7cd6848[m Enhanced environment variable management: auto-update OAuth URLs, create .env files, and generate deployment summaries for each deployment
+[33m6edddfd[m CRITICAL FIX: Fix syntax error in OpenAPI spec - incorrect quotes in authorizationUrl and tokenUrl

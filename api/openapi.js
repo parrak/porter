@@ -13,14 +13,14 @@ module.exports = (req, res) => {
   
   try {
     // Use static server URL for consistent OAuth configuration
-    const serverUrl = 'https://porter-psi.vercel.app';
+    const serverUrl = 'https://porter-preview.vercel.app';
     
     console.log(`[OPENAPI] Generating specification with static server URL: ${serverUrl}`);
     
     // Use static OAuth URLs for ChatGPT validation
-    const oauthBaseUrl = 'https://porter-psi.vercel.app';
-    const authorizationUrl = 'https://porter-psi.vercel.app/api/oauth/authorize';
-    const tokenUrl = 'https://porter-psi.vercel.app/api/oauth/token';
+    const oauthBaseUrl = 'https://porter-preview.vercel.app';
+    const authorizationUrl = 'https://porter-preview.vercel.app/api/oauth/authorize';
+    const tokenUrl = 'https://porter-preview.vercel.app/api/oauth/token';
     
     // Embedded OpenAPI specification for GPT-5 compatibility
     const openapiSpec = {
@@ -31,13 +31,13 @@ module.exports = (req, res) => {
         "version": "1.0.0",
         "contact": {
           "name": "Flight Booking Agent API",
-          "url": "https://porter-psi.vercel.app"
+          "url": "https://porter-preview.vercel.app"
         }
       },
       "servers": [
         {
-          "url": "https://porter-psi.vercel.app",
-          "description": "Production server - Flight Booking Agent API"
+          "url": "https://porter-preview.vercel.app",
+          "description": "Preview server - Flight Booking Agent API"
         }
       ],
       "components": {
@@ -46,9 +46,9 @@ module.exports = (req, res) => {
             "type": "oauth2",
             "flows": {
               "authorizationCode": {
-                "authorizationUrl": "https://porter-psi.vercel.app/api/oauth/authorize",
-                "tokenUrl": "https://porter-psi.vercel.app/api/oauth/token",
-                "refreshUrl": "https://porter-psi.vercel.app/api/oauth/refresh",
+                "authorizationUrl": "https://porter-preview.vercel.app/api/oauth/authorize",
+                "tokenUrl": "https://porter-preview.vercel.app/api/oauth/token",
+                "refreshUrl": "https://porter-preview.vercel.app/api/oauth/refresh",
                 "scopes": {
                   "read": "Read user profile and preferences",
                   "write": "Update user preferences and booking history",
