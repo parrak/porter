@@ -39,6 +39,27 @@ module.exports = (req, res) => {
           "description": "Production server"
         }
       ],
+      "components": {
+        "securitySchemes": {
+          "ApiKeyAuth": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "X-API-Key",
+            "description": "API key for authentication. Include this in the header as 'X-API-Key: your_api_key_here'"
+          },
+          "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "JWT token for authentication. Include this in the header as 'Authorization: Bearer your_jwt_token_here'"
+          }
+        }
+      },
+      "security": [
+        {
+          "ApiKeyAuth": []
+        }
+      ],
       "paths": {
         "/api/chatgpt": {
           "post": {
@@ -46,6 +67,11 @@ module.exports = (req, res) => {
             "description": "Use ChatGPT to parse natural language flight requests and return flight options",
             "operationId": "chatgptFlightSearch",
             "tags": ["Flight Search"],
+            "security": [
+              {
+                "ApiKeyAuth": []
+              }
+            ],
             "requestBody": {
               "required": true,
               "content": {
@@ -240,6 +266,11 @@ module.exports = (req, res) => {
             "operationId": "searchFlights",
             "tags": ["Flight Search"],
             "summary": "Search for available flights",
+            "security": [
+              {
+                "ApiKeyAuth": []
+              }
+            ],
             "description": "Search for flights using specific parameters. Integrates with Amadeus API for real-time flight data.",
             "requestBody": {
               "required": true,
@@ -326,6 +357,21 @@ module.exports = (req, res) => {
                     }
                   }
                 }
+              },
+              "401": {
+                "description": "Unauthorized - API key required",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": { "type": "string", "example": "Unauthorized" },
+                        "message": { "type": "string", "example": "API key is required for this endpoint" },
+                        "code": { "type": "string", "example": "MISSING_API_KEY" }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -335,6 +381,11 @@ module.exports = (req, res) => {
             "operationId": "bookFlight",
             "tags": ["Flight Booking"],
             "summary": "Book a selected flight",
+            "security": [
+              {
+                "ApiKeyAuth": []
+              }
+            ],
             "description": "Book a flight using the flight offer ID from search results. Integrates with Amadeus API for real bookings.",
             "requestBody": {
               "required": true,
@@ -572,6 +623,11 @@ module.exports = (req, res) => {
             "description": "Get user profile data for Custom GPT personalization. Returns display name, role, preferences, and recent context.",
             "operationId": "getUserProfile",
             "tags": ["User Management"],
+            "security": [
+              {
+                "ApiKeyAuth": []
+              }
+            ],
             "parameters": [
               {
                 "name": "id",
@@ -796,6 +852,7 @@ module.exports = (req, res) => {
             "description": "Check if the API is running and healthy",
             "operationId": "healthCheck",
             "tags": ["System"],
+            "security": [],
             "responses": {
               "200": {
                 "description": "API is healthy",
@@ -826,6 +883,7 @@ module.exports = (req, res) => {
             "description": "Get the OpenAPI specification for this API",
             "operationId": "getOpenAPISpec",
             "tags": ["System"],
+            "security": [],
             "responses": {
               "200": {
                 "description": "OpenAPI specification",
