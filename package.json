@@ -10,7 +10,7 @@
     "vercel-build": "echo 'No build step required'",
     "postinstall": "node scripts/update-oauth-urls.js",
     "update-oauth": "node scripts/update-oauth-urls.js",
-    "update-current": "node scripts/update-current-oauth.js porter-pxjgnn1nm-rakesh-paridas-projects.vercel.app",
+    "update-current": "node scripts/update-current-oauth.js porter-psi.vercel.app",
     "update-env": "node scripts/update-env-vars.js",
     "test": "jest",
     "test:watch": "jest --watch",

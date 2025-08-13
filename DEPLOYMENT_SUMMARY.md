@@ -1,29 +1,29 @@
 # Deployment Summary
 
 ## 🚀 Latest Deployment
-- **Deployment URL**: porter-pxjgnn1nm-rakesh-paridas-projects.vercel.app
-- **Full URL**: https://porter-pxjgnn1nm-rakesh-paridas-projects.vercel.app
-- **Timestamp**: 2025-08-13T19:58:51.895Z
+- **Deployment URL**: porter-psi.vercel.app
+- **Full URL**: https://porter-psi.vercel.app
+- **Timestamp**: 2025-08-13T20:19:14.539Z
 
 ## 🔧 OAuth Configuration
 - **Client ID**: porter-flight-booking
-- **Authorization URL**: https://porter-pxjgnn1nm-rakesh-paridas-projects.vercel.app/api/oauth/authorize
-- **Token URL**: https://porter-pxjgnn1nm-rakesh-paridas-projects.vercel.app/api/oauth/token
+- **Authorization URL**: https://porter-psi.vercel.app/api/oauth/authorize
+- **Token URL**: https://porter-psi.vercel.app/api/oauth/token
 - **Redirect URI**: https://chatgpt.com/aip/{g-YOUR-GPT-ID-HERE}/oauth/callback
 
 ## 📡 API Endpoints
-- **Health Check**: https://porter-pxjgnn1nm-rakesh-paridas-projects.vercel.app/api/health
-- **OpenAPI Spec**: https://porter-pxjgnn1nm-rakesh-paridas-projects.vercel.app/api/openapi
-- **ChatGPT**: https://porter-pxjgnn1nm-rakesh-paridas-projects.vercel.app/api/chatgpt
-- **Flight Search**: https://porter-pxjgnn1nm-rakesh-paridas-projects.vercel.app/api/search-flights
-- **Flight Booking**: https://porter-pxjgnn1nm-rakesh-paridas-projects.vercel.app/api/book-flight
+- **Health Check**: https://porter-psi.vercel.app/api/health
+- **OpenAPI Spec**: https://porter-psi.vercel.app/api/openapi
+- **ChatGPT**: https://porter-psi.vercel.app/api/chatgpt
+- **Flight Search**: https://porter-psi.vercel.app/api/search-flights
+- **Flight Booking**: https://porter-psi.vercel.app/api/book-flight
 
 ## 🎯 ChatGPT Action Configuration
 ```
-Action URL: https://porter-pxjgnn1nm-rakesh-paridas-projects.vercel.app/api/openapi
+Action URL: https://porter-psi.vercel.app/api/openapi
 Client ID: porter-flight-booking
-Authorization URL: https://porter-pxjgnn1nm-rakesh-paridas-projects.vercel.app/api/oauth/authorize
-Token URL: https://porter-pxjgnn1nm-rakesh-paridas-projects.vercel.app/api/oauth/token
+Authorization URL: https://porter-psi.vercel.app/api/oauth/authorize
+Token URL: https://porter-psi.vercel.app/api/oauth/token
 Redirect URI: https://chatgpt.com/aip/{g-YOUR-GPT-ID-HERE}/oauth/callback
 ```
 
@@ -34,4 +34,4 @@ Redirect URI: https://chatgpt.com/aip/{g-YOUR-GPT-ID-HERE}/oauth/callback
 4. Test the OAuth flow and flight search endpoints
 
 ---
-*Auto-generated on 2025-08-13T19:58:51.895Z*
+*Auto-generated on 2025-08-13T20:19:14.539Z*

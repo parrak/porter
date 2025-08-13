@@ -12,19 +12,15 @@ module.exports = (req, res) => {
   }
   
   try {
-    // Dynamically determine the server URL
-    const serverUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : req.headers.host 
-        ? `https://${req.headers.host}` 
-        : 'http://localhost:3000';
+    // Use static server URL for consistent OAuth configuration
+    const serverUrl = 'https://porter-psi.vercel.app';
     
-    console.log(`[OPENAPI] Generating specification with server URL: ${serverUrl}`);
+    console.log(`[OPENAPI] Generating specification with static server URL: ${serverUrl}`);
     
-    // Dynamically determine OAuth URLs based on server URL
-    const oauthBaseUrl = serverUrl;
-    const authorizationUrl = `${oauthBaseUrl}/api/oauth/authorize`;
-    const tokenUrl = `${oauthBaseUrl}/api/oauth/token`;
+    // Use static OAuth URLs for ChatGPT validation
+    const oauthBaseUrl = 'https://porter-psi.vercel.app';
+    const authorizationUrl = 'https://porter-psi.vercel.app/api/oauth/authorize';
+    const tokenUrl = 'https://porter-psi.vercel.app/api/oauth/token';
     
     // Embedded OpenAPI specification for GPT-5 compatibility
     const openapiSpec = {
@@ -35,13 +31,13 @@ module.exports = (req, res) => {
         "version": "1.0.0",
         "contact": {
           "name": "Flight Booking Agent API",
-          "url": serverUrl
+          "url": "https://porter-psi.vercel.app"
         }
       },
       "servers": [
         {
-          "url": serverUrl,
-          "description": "Production server"
+          "url": "https://porter-psi.vercel.app",
+          "description": "Production server - Flight Booking Agent API"
         }
       ],
       "components": {
@@ -50,9 +46,9 @@ module.exports = (req, res) => {
             "type": "oauth2",
             "flows": {
               "authorizationCode": {
-                "authorizationUrl": authorizationUrl,
-                "tokenUrl": tokenUrl,
-                "refreshUrl": `${oauthBaseUrl}/api/oauth/refresh`,
+                "authorizationUrl": "https://porter-psi.vercel.app/api/oauth/authorize",
+                "tokenUrl": "https://porter-psi.vercel.app/api/oauth/token",
+                "refreshUrl": "https://porter-psi.vercel.app/api/oauth/refresh",
                 "scopes": {
                   "read": "Read user profile and preferences",
                   "write": "Update user preferences and booking history",
