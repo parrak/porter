@@ -237,6 +237,7 @@ module.exports = (req, res) => {
         },
         "/api/search-flights": {
           "post": {
+            "operationId": "searchFlights",
             "tags": ["Flight Search"],
             "summary": "Search for available flights",
             "description": "Search for flights using specific parameters. Integrates with Amadeus API for real-time flight data.",
@@ -331,6 +332,7 @@ module.exports = (req, res) => {
         },
         "/api/book-flight": {
           "post": {
+            "operationId": "bookFlight",
             "tags": ["Flight Booking"],
             "summary": "Book a selected flight",
             "description": "Book a flight using the flight offer ID from search results. Integrates with Amadeus API for real bookings.",

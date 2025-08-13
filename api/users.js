@@ -281,3 +281,4 @@ function logTelemetry(event, data) {
   // - Sentry
   // - Custom logging endpoint
 }
+

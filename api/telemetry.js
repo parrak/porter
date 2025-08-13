@@ -231,3 +231,4 @@ module.exports = {
   // Health check
   healthCheck: () => telemetryService.healthCheck()
 };
+

@@ -265,13 +265,33 @@ async function bookFlightWithAmadeus(flightOfferId, passengers, contactInfo, pay
     const tokenData = await tokenResponse.json();
     console.log(`[${requestId}] ✅ Amadeus access token obtained successfully`);
     
-    // Step 1: Create flight order (booking)
+    // Step 1: First fetch the flight offer data
+    console.log(`[${requestId}] 🔍 Fetching flight offer data from Amadeus...`);
+    
+    const flightOfferResponse = await fetch(`https://test.api.amadeus.com/v2/shopping/flight-offers/${flightOfferId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!flightOfferResponse.ok) {
+      const errorText = await flightOfferResponse.text();
+      console.error(`[${requestId}] ❌ Failed to fetch flight offer: ${flightOfferResponse.status} - ${errorText}`);
+      throw new Error(`Failed to fetch flight offer: ${flightOfferResponse.status}`);
+    }
+
+    const flightOfferData = await flightOfferResponse.json();
+    console.log(`[${requestId}] ✅ Flight offer data retrieved successfully`);
+    
+    // Step 2: Create flight order (booking)
     console.log(`[${requestId}] 🎫 Creating flight order with Amadeus...`);
     
     const orderPayload = {
       data: {
         type: 'flight-order',
-        flightOffers: [flightOfferId],
+        flightOffers: [flightOfferData.data],
         travelers: passengers.map(passenger => ({
           id: passenger.id || `traveler-${Math.random().toString(36).substr(2, 9)}`,
           dateOfBirth: passenger.dateOfBirth,
@@ -418,3 +438,4 @@ function logTelemetry(event, data) {
   
   // In production, you could send this to a logging service
 }
+
