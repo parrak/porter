@@ -25,6 +25,10 @@
       "destination": "/api/search-flights.js"
     },
     {
+      "source": "/api/book-flight",
+      "destination": "/api/book-flight.js"
+    },
+    {
       "source": "/api/users/:id",
       "destination": "/api/users.js"
     },

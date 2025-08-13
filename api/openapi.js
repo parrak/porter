@@ -237,137 +237,309 @@ module.exports = (req, res) => {
         },
         "/api/search-flights": {
           "post": {
-            "summary": "Search flights with specific parameters",
-            "description": "Search for flights using exact airport codes and parameters",
-            "operationId": "searchFlights",
             "tags": ["Flight Search"],
+            "summary": "Search for available flights",
+            "description": "Search for flights using specific parameters. Integrates with Amadeus API for real-time flight data.",
             "requestBody": {
               "required": true,
               "content": {
                 "application/json": {
                   "schema": {
                     "type": "object",
+                    "required": ["from", "to", "date"],
                     "properties": {
                       "from": {
                         "type": "string",
-                        "description": "Departure airport code (e.g., SEA, LAX, JFK)",
+                        "description": "3-letter departure airport code",
                         "example": "JFK"
                       },
                       "to": {
-                        "type": "string",
-                        "description": "Destination airport code (e.g., YVR, LAX, SFO)",
+                        "type": "string", 
+                        "description": "3-letter arrival airport code",
                         "example": "LAX"
                       },
                       "date": {
                         "type": "string",
-                        "description": "Travel date in YYYY-MM-DD format",
-                        "example": "2024-09-05"
+                        "description": "Departure date in YYYY-MM-DD format",
+                        "example": "2025-01-15"
                       },
                       "passengers": {
                         "type": "integer",
                         "description": "Number of passengers",
                         "default": 1,
-                        "example": 1
+                        "minimum": 1,
+                        "example": 2
                       },
                       "travelClass": {
                         "type": "string",
-                        "description": "Travel class (ECONOMY, BUSINESS, FIRST)",
+                        "description": "Travel class preference",
+                        "enum": ["ECONOMY", "PREMIUM_ECONOMY", "BUSINESS", "FIRST"],
                         "default": "ECONOMY",
-                        "enum": ["ECONOMY", "BUSINESS", "FIRST"],
                         "example": "ECONOMY"
                       },
                       "userId": {
                         "type": "string",
-                        "description": "User identifier for tracking and personalization (optional)",
-                        "example": "demo@example.com"
+                        "description": "User identifier for personalization",
+                        "example": "john@example.com"
                       }
-                    },
-                    "required": ["from", "to", "date"]
+                    }
                   }
                 }
               }
             },
             "responses": {
               "200": {
-                "description": "Available flights",
+                "description": "Flight search results",
                 "content": {
                   "application/json": {
                     "schema": {
                       "type": "object",
                       "properties": {
-                        "success": {
-                          "type": "boolean",
-                          "description": "Whether the search was successful"
-                        },
+                        "success": { "type": "boolean" },
+                        "searchParams": { "$ref": "#/components/schemas/SearchParams" },
+                        "flightsFound": { "type": "integer" },
                         "flights": {
                           "type": "array",
-                          "description": "List of available flights",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "flightNumber": {
-                                "type": "string",
-                                "example": "AA123"
-                              },
-                              "route": {
-                                "type": "string",
-                                "example": "JFK → LAX"
-                              },
-                              "time": {
-                                "type": "string",
-                                "example": "10:00 AM - 11:30 AM"
-                              },
-                              "stops": {
-                                "type": "string",
-                                "example": "Direct"
-                              },
-                              "price": {
-                                "type": "string",
-                                "example": "$299"
-                              },
-                              "seats": {
-                                "type": "integer",
-                                "example": 4
-                              },
-                              "airline": {
-                                "type": "string",
-                                "example": "American Airlines"
-                              },
-                              "class": {
-                                "type": "string",
-                                "example": "ECONOMY"
-                              }
-                            }
-                          }
+                          "items": { "$ref": "#/components/schemas/Flight" }
                         },
-                        "searchParams": {
-                          "type": "object",
-                          "description": "Search parameters used"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "description": "Unique request identifier"
-                        },
-                        "dataSource": {
-                          "type": "string",
-                          "description": "Source of flight data (amadeus_api or mock_data)",
-                          "enum": ["amadeus_api", "mock_data"]
-                        }
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" },
+                        "dataSource": { "type": "string" }
                       }
                     }
                   }
                 }
               },
               "400": {
-                "description": "Bad request - missing required parameters",
+                "description": "Bad request - validation error",
                 "content": {
                   "application/json": {
                     "schema": {
                       "type": "object",
                       "properties": {
-                        "error": {
-                          "type": "string",
-                          "example": "from, to, and date are required"
+                        "error": { "type": "string" },
+                        "message": { "type": "string" },
+                        "suggestions": { "type": "array", "items": { "type": "string" } },
+                        "requestId": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "/api/book-flight": {
+          "post": {
+            "tags": ["Flight Booking"],
+            "summary": "Book a selected flight",
+            "description": "Book a flight using the flight offer ID from search results. Integrates with Amadeus API for real bookings.",
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": ["flightOfferId", "passengers", "contactInfo"],
+                    "properties": {
+                      "flightOfferId": {
+                        "type": "string",
+                        "description": "Flight offer ID from search results",
+                        "example": "1"
+                      },
+                      "passengers": {
+                        "type": "array",
+                        "description": "Array of passenger information",
+                        "items": {
+                          "type": "object",
+                          "required": ["firstName", "lastName", "dateOfBirth", "documentNumber", "documentExpiryDate"],
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "description": "Passenger type",
+                              "enum": ["adult", "child", "infant"],
+                              "default": "adult"
+                            },
+                            "title": {
+                              "type": "string",
+                              "description": "Title (Mr, Ms, Dr, etc.)",
+                              "example": "Mr"
+                            },
+                            "firstName": {
+                              "type": "string",
+                              "description": "First name",
+                              "example": "John"
+                            },
+                            "lastName": {
+                              "type": "string",
+                              "description": "Last name",
+                              "example": "Doe"
+                            },
+                            "dateOfBirth": {
+                              "type": "string",
+                              "description": "Date of birth in YYYY-MM-DD format",
+                              "example": "1990-01-01"
+                            },
+                            "gender": {
+                              "type": "string",
+                              "description": "Gender",
+                              "enum": ["MALE", "FEMALE"],
+                              "default": "MALE"
+                            },
+                            "documentType": {
+                              "type": "string",
+                              "description": "Travel document type",
+                              "enum": ["PASSPORT", "ID_CARD", "DRIVING_LICENSE"],
+                              "default": "PASSPORT"
+                            },
+                            "documentNumber": {
+                              "type": "string",
+                              "description": "Document number",
+                              "example": "AB123456"
+                            },
+                            "documentExpiryDate": {
+                              "type": "string",
+                              "description": "Document expiry date in YYYY-MM-DD format",
+                              "example": "2030-01-01"
+                            },
+                            "birthPlace": {
+                              "type": "string",
+                              "description": "Place of birth",
+                              "example": "UNITED STATES"
+                            },
+                            "issuanceLocation": {
+                              "type": "string",
+                              "description": "Document issuance location",
+                              "example": "UNITED STATES"
+                            }
+                          }
+                        }
+                      },
+                      "contactInfo": {
+                        "type": "object",
+                        "required": ["email", "phone"],
+                        "properties": {
+                          "email": {
+                            "type": "string",
+                            "description": "Contact email address",
+                            "format": "email",
+                            "example": "john.doe@example.com"
+                          },
+                          "phone": {
+                            "type": "string",
+                            "description": "Contact phone number",
+                            "example": "+1-555-123-4567"
+                          },
+                          "address": {
+                            "type": "object",
+                            "properties": {
+                              "street": { "type": "string" },
+                              "city": { "type": "string" },
+                              "state": { "type": "string" },
+                              "country": { "type": "string" },
+                              "postalCode": { "type": "string" }
+                            }
+                          }
+                        }
+                      },
+                      "paymentInfo": {
+                        "type": "object",
+                        "description": "Payment information (optional for demo)",
+                        "properties": {
+                          "method": {
+                            "type": "string",
+                            "enum": ["credit_card", "debit_card", "paypal"],
+                            "example": "credit_card"
+                          },
+                          "cardNumber": {
+                            "type": "string",
+                            "description": "Last 4 digits of card",
+                            "example": "1234"
+                          }
+                        }
+                      },
+                      "userId": {
+                        "type": "string",
+                        "description": "User identifier for personalization",
+                        "example": "john@example.com"
+                      },
+                      "searchParams": {
+                        "type": "object",
+                        "description": "Original search parameters for context",
+                        "properties": {
+                          "from": { "type": "string" },
+                          "to": { "type": "string" },
+                          "date": { "type": "string" },
+                          "passengers": { "type": "integer" },
+                          "travelClass": { "type": "string" }
+                        }
+                      },
+                      "originalIntent": {
+                        "type": "object",
+                        "description": "Original user intent from ChatGPT",
+                        "properties": {
+                          "from": { "type": "string" },
+                          "to": { "type": "string" },
+                          "date": { "type": "string" },
+                          "passengers": { "type": "integer" },
+                          "class": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Flight booked successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "success": { "type": "boolean" },
+                        "message": { "type": "string" },
+                        "bookingReference": { "type": "string" },
+                        "bookingDetails": {
+                          "type": "object",
+                          "properties": {
+                            "status": { "type": "string" },
+                            "confirmationNumber": { "type": "string" },
+                            "bookingDate": { "type": "string" },
+                            "totalPrice": { "type": "string" },
+                            "currency": { "type": "string" },
+                            "flightDetails": { "type": "object" }
+                          }
+                        },
+                        "passengers": {
+                          "type": "array",
+                          "items": { "type": "object" }
+                        },
+                        "contactInfo": { "type": "object" },
+                        "searchParams": { "type": "object" },
+                        "originalIntent": { "type": "object" },
+                        "requestId": { "type": "string" },
+                        "dataSource": { "type": "string" },
+                        "bookingDuration": { "type": "number" }
+                      }
+                    }
+                  }
+                }
+              },
+              "400": {
+                "description": "Bad request - validation error",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": { "type": "string" },
+                        "message": { "type": "string" },
+                        "required": { "type": "array", "items": { "type": "string" } },
+                        "examples": {
+                          "type": "array",
+                          "items": { "type": "object" }
                         }
                       }
                     }
@@ -381,18 +553,9 @@ module.exports = (req, res) => {
                     "schema": {
                       "type": "object",
                       "properties": {
-                        "error": {
-                          "type": "string",
-                          "example": "Internal server error"
-                        },
-                        "message": {
-                          "type": "string",
-                          "example": "Flight search failed"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "description": "Request identifier for debugging"
-                        }
+                        "error": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
                       }
                     }
                   }
@@ -708,15 +871,19 @@ module.exports = (req, res) => {
       "tags": [
         {
           "name": "Flight Search",
-          "description": "Endpoints for searching and booking flights"
+          "description": "Search for available flights using various criteria"
+        },
+        {
+          "name": "Flight Booking", 
+          "description": "Book selected flights with passenger and payment information"
         },
         {
           "name": "User Management",
-          "description": "Endpoints for user profile management and personalization"
+          "description": "Manage user profiles and preferences for personalization"
         },
         {
           "name": "System",
-          "description": "System health and documentation endpoints"
+          "description": "System health and API information"
         }
       ],
       "components": {
