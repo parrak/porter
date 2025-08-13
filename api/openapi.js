@@ -69,60 +69,89 @@ module.exports = (req, res) => {
             }
           }
         },
-        "/api/search-flights": {
-          "post": {
-            "summary": "Search flights with parameters",
-            "operationId": "searchFlights",
-            "requestBody": {
-              "required": true,
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object",
-                    "properties": {
-                      "from": {
-                        "type": "string",
-                        "description": "Departure airport code"
-                      },
-                      "to": {
-                        "type": "string",
-                        "description": "Destination airport code"
-                      },
-                      "date": {
-                        "type": "string",
-                        "description": "Travel date (YYYY-MM-DD)"
-                      }
-                    },
-                    "required": ["from", "to", "date"]
-                  }
-                }
-              }
-            },
-            "responses": {
-              "200": {
-                "description": "Available flights",
-                "content": {
-                  "application/json": {
-                    "schema": {
-                      "type": "object",
-                      "properties": {
-                        "success": {
-                          "type": "boolean"
-                        },
-                        "flights": {
-                          "type": "array",
-                          "items": {
-                            "type": "object"
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+                 "/api/search-flights": {
+           "post": {
+             "summary": "Search flights with parameters",
+             "operationId": "searchFlights",
+             "requestBody": {
+               "required": true,
+               "content": {
+                 "application/json": {
+                   "schema": {
+                     "type": "object",
+                     "properties": {
+                       "from": {
+                         "type": "string",
+                         "description": "Departure airport code"
+                       },
+                       "to": {
+                         "type": "string",
+                         "description": "Destination airport code"
+                       },
+                       "date": {
+                         "type": "string",
+                         "description": "Travel date (YYYY-MM-DD)"
+                       }
+                     },
+                     "required": ["from", "to", "date"]
+                   }
+                 }
+               }
+             },
+             "responses": {
+               "200": {
+                 "description": "Available flights",
+                 "content": {
+                   "application/json": {
+                     "schema": {
+                       "type": "object",
+                       "properties": {
+                         "success": {
+                           "type": "boolean"
+                         },
+                         "flights": {
+                           "type": "array",
+                           "items": {
+                             "type": "object"
+                           }
+                         }
+                       }
+                     }
+                   }
+                 }
+               }
+             }
+           }
+         },
+         "/api/public": {
+           "get": {
+             "summary": "Public endpoint with no authentication",
+             "operationId": "publicTest",
+             "responses": {
+               "200": {
+                 "description": "Public access confirmed",
+                 "content": {
+                   "application/json": {
+                     "schema": {
+                       "type": "object",
+                       "properties": {
+                         "success": {
+                           "type": "boolean"
+                         },
+                         "message": {
+                           "type": "string"
+                         },
+                         "public": {
+                           "type": "boolean"
+                         }
+                       }
+                     }
+                   }
+                 }
+               }
+             }
+           }
+         }
       }
     };
     
