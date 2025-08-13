@@ -554,137 +554,283 @@ module.exports = async (req, res) => {
         intent: flightIntent
       });
       
-      // Fallback to mock response if search fails
-      console.log(`[${requestId}] 🔄 Falling back to mock flight data due to search failure...`);
+      // Instead of falling back to mock data, use OpenAPI to recreate intent with error context
+      console.log(`[${requestId}] 🔄 Flight search failed, using OpenAPI to recreate intent with error context...`);
       
-      const mockResponse = {
-        success: true,
-        message: `Found flights for your request: "${message}" (using fallback data)`,
-        intent: flightIntent,
-        requestId,
-        flights: [
-          {
-            flightNumber: "AA123",
-            route: `${flightIntent.from} → ${flightIntent.to}`,
-            time: "10:00 AM - 11:30 AM",
-            stops: "Direct",
-            price: "$299",
-            seats: 4,
-            airline: "American Airlines",
-            class: flightIntent.class
-          },
-          {
-            flightNumber: "DL456",
-            route: `${flightIntent.from} → ${flightIntent.to}`,
-            time: "2:00 PM - 3:30 PM", 
-            stops: "1 stop",
-            price: "$249",
-            seats: 2,
-            airline: "Delta Airlines",
-            class: flightIntent.class
+      try {
+        // Get the OpenAPI specification to understand the API structure
+        const openapiResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/openapi`, {
+          method: 'GET',
+          headers: {
+            'X-Request-ID': requestId,
+            'X-Source': 'chatgpt-endpoint-error-recovery'
           }
-        ],
-        searchParams: {
-          from: flightIntent.from,
-          to: flightIntent.to,
-          date: flightIntent.date,
-          passengers: flightIntent.passengers,
-          travelClass: flightIntent.class.toUpperCase()
-        },
-        dataSource: 'fallback_mock_data',
-        note: 'Real flight search failed, showing sample data',
-        userProfile: userProfile ? {
-          displayName: userProfile.displayName,
-          role: userProfile.role,
-          preferences: userProfile.preferences,
-          recentContext: userProfile.recentContext
-        } : null
-      };
-
-      // If user profile doesn't exist, create one with the fallback context
-      if (!userProfile) {
-        console.log(`[${requestId}] 🆕 Creating new user profile for: ${userId} (fallback mode)`);
+        });
         
-        try {
-          const createProfileResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/users/${encodeURIComponent(userId)}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Request-ID': requestId,
-              'X-Source': 'chatgpt-endpoint-fallback'
-            },
-            body: JSON.stringify({
-              displayName: userId.includes('@') ? userId.split('@')[0] : userId,
-              role: 'Traveler',
-              preferences: {
-                tone: 'friendly',
-                format: 'detailed',
-                travelStyle: 'flexible'
+        if (openapiResponse.ok) {
+          const openapiSpec = await openapiResponse.json();
+          console.log(`[${requestId}] ✅ Retrieved OpenAPI specification for error recovery`);
+          
+          // Extract error details from the search error
+          let errorDetails = {};
+          let errorMessage = searchError.message;
+          let suggestions = [];
+          
+          try {
+            // Try to parse the error response if it's JSON
+            if (searchError.message.includes('Search flights API returned')) {
+              const errorMatch = searchError.message.match(/Search flights API returned (\d+): (.+)/);
+              if (errorMatch) {
+                const statusCode = parseInt(errorMatch[1]);
+                const errorBody = errorMatch[2];
+                
+                try {
+                  const parsedError = JSON.parse(errorBody);
+                  errorDetails = parsedError;
+                  errorMessage = parsedError.message || parsedError.error || errorMessage;
+                  suggestions = parsedError.suggestions || [];
+                } catch (parseError) {
+                  console.log(`[${requestId}] ⚠️ Could not parse error body as JSON:`, parseError);
+                }
+              }
+            }
+          } catch (parseError) {
+            console.log(`[${requestId}] ⚠️ Error parsing failed:`, parseError);
+          }
+          
+          // Create a comprehensive error response with OpenAPI guidance
+          const errorResponse = {
+            success: false,
+            error: 'Flight search failed',
+            message: errorMessage || 'Unable to complete flight search',
+            requestId,
+            originalIntent: flightIntent,
+            errorDetails: errorDetails,
+            suggestions: suggestions.length > 0 ? suggestions : [
+              'Check your search parameters',
+              'Ensure dates are in the future',
+              'Verify airport codes are valid 3-letter codes',
+              'Try different dates or routes'
+            ],
+            openapiGuidance: {
+              message: 'Use the OpenAPI specification below to understand valid parameters and retry your request',
+              specification: {
+                title: openapiSpec.info?.title,
+                version: openapiSpec.info?.version,
+                description: openapiSpec.info?.description,
+                searchFlightsEndpoint: {
+                  path: '/api/search-flights',
+                  method: 'POST',
+                  requiredParameters: ['from', 'to', 'date'],
+                  optionalParameters: ['passengers', 'travelClass', 'userId'],
+                  parameterFormats: {
+                    from: '3-letter airport code (e.g., JFK, LAX, ORD)',
+                    to: '3-letter airport code (e.g., JFK, LAX, ORD)',
+                    date: 'YYYY-MM-DD format (e.g., 2025-01-15)',
+                    passengers: 'Number (default: 1)',
+                    travelClass: 'ECONOMY, PREMIUM_ECONOMY, BUSINESS, FIRST (default: ECONOMY)',
+                    userId: 'String identifier for personalization'
+                  },
+                  examples: [
+                    {
+                      description: 'Basic search',
+                      parameters: {
+                        from: 'JFK',
+                        to: 'LAX',
+                        date: '2025-01-15'
+                      }
+                    },
+                    {
+                      description: 'Detailed search',
+                      parameters: {
+                        from: 'ORD',
+                        to: 'SFO',
+                        date: '2025-06-20',
+                        passengers: 2,
+                        travelClass: 'BUSINESS',
+                        userId: 'john@example.com'
+                      }
+                    }
+                  ]
+                }
               },
-              recentContext: [
-                `First flight search (fallback): ${flightIntent.from} → ${flightIntent.to}`,
-                `Searched for ${flightIntent.passengers} passenger(s)`,
-                `Preferred class: ${flightIntent.class}`,
-                `Used fallback data due to search failure`
-              ],
-              consent: true
-            })
+              fullSpecification: openapiSpec
+            },
+            recoveryInstructions: [
+              '1. Review the error details above',
+              '2. Check the OpenAPI specification for valid parameter formats',
+              '3. Adjust your request based on the suggestions',
+              '4. Retry with corrected parameters',
+              '5. If issues persist, the system will use fallback data'
+            ],
+            note: 'This response includes the complete OpenAPI specification to help you understand valid request formats and retry with corrected parameters.'
+          };
+          
+          // Log the error recovery attempt
+          logTelemetry('chatgpt_error_recovery_openapi', {
+            requestId,
+            success: true,
+            errorType: 'search_flights_failure',
+            errorMessage: errorMessage,
+            hasErrorDetails: !!errorDetails,
+            suggestionsProvided: suggestions.length,
+            openapiRetrieved: true,
+            userId: userId || 'anonymous'
           });
           
-          if (createProfileResponse.ok) {
-            const newProfile = await createProfileResponse.json();
-            console.log(`[${requestId}] ✅ New user profile created successfully (fallback mode)`);
-            
-            // Update response with new profile
-            mockResponse.userProfile = {
-              displayName: newProfile.displayName || userId,
-              role: newProfile.role || 'Traveler',
-              preferences: newProfile.preferences || {},
-              recentContext: newProfile.recentContext || [],
-              isNewProfile: true
-            };
-            
-            logTelemetry('chatgpt_user_profile_created_fallback', {
-              requestId,
-              success: true,
-              userId,
-              profileData: mockResponse.userProfile,
-              mode: 'fallback'
+          // Return the comprehensive error response with OpenAPI guidance
+          res.status(400).json(errorResponse);
+          return;
+          
+        } else {
+          console.log(`[${requestId}] ⚠️ Failed to retrieve OpenAPI specification: ${openapiResponse.status}`);
+          throw new Error('OpenAPI specification unavailable for error recovery');
+        }
+        
+      } catch (openapiError) {
+        console.error(`[${requestId}] ❌ OpenAPI error recovery failed:`, openapiError);
+        
+        // Log the OpenAPI error recovery failure
+        logTelemetry('chatgpt_error_recovery_openapi_failed', {
+          requestId,
+          success: false,
+          error: openapiError.message,
+          userId: userId || 'anonymous'
+        });
+        
+        // Fallback to mock response if OpenAPI recovery fails
+        console.log(`[${requestId}] 🔄 OpenAPI recovery failed, falling back to mock flight data...`);
+        
+        const mockResponse = {
+          success: true,
+          message: `Found flights for your request: "${message}" (using fallback data due to search and recovery failure)`,
+          intent: flightIntent,
+          requestId,
+          flights: [
+            {
+              flightNumber: "AA123",
+              route: `${flightIntent.from} → ${flightIntent.to}`,
+              time: "10:00 AM - 11:30 AM",
+              stops: "Direct",
+              price: "$299",
+              seats: 4,
+              airline: "American Airlines",
+              class: flightIntent.class
+            },
+            {
+              flightNumber: "DL456",
+              route: `${flightIntent.from} → ${flightIntent.to}`,
+              time: "2:00 PM - 3:30 PM", 
+              stops: "1 stop",
+              price: "$249",
+              seats: 2,
+              airline: "Delta Airlines",
+              class: flightIntent.class
+            }
+          ],
+          searchParams: {
+            from: flightIntent.from,
+            to: flightIntent.to,
+            date: flightIntent.date,
+            passengers: flightIntent.passengers,
+            travelClass: flightIntent.class.toUpperCase()
+          },
+          dataSource: 'fallback_mock_data',
+          note: 'Real flight search and OpenAPI recovery failed, showing sample data',
+          userProfile: userProfile ? {
+            displayName: userProfile.displayName,
+            role: userProfile.role,
+            preferences: userProfile.preferences,
+            recentContext: userProfile.recentContext
+          } : null
+        };
+
+        // If user profile doesn't exist, create one with the fallback context
+        if (!userProfile) {
+          console.log(`[${requestId}] 🆕 Creating new user profile for: ${userId} (fallback mode)`);
+          
+          try {
+            const createProfileResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/users/${encodeURIComponent(userId)}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Request-ID': requestId,
+                'X-Source': 'chatgpt-endpoint-fallback'
+              },
+              body: JSON.stringify({
+                displayName: userId.includes('@') ? userId.split('@')[0] : userId,
+                role: 'Traveler',
+                preferences: {
+                  tone: 'friendly',
+                  format: 'detailed',
+                  travelStyle: 'flexible'
+                },
+                recentContext: [
+                  `First flight search (fallback): ${flightIntent.from} → ${flightIntent.to}`,
+                  `Searched for ${flightIntent.passengers} passenger(s)`,
+                  `Preferred class: ${flightIntent.class}`,
+                  `Used fallback data due to search and recovery failure`
+                ],
+                consent: true
+              })
             });
             
-          } else {
-            console.log(`[${requestId}] ⚠️ Failed to create user profile (fallback mode): ${createProfileResponse.status}`);
+            if (createProfileResponse.ok) {
+              const newProfile = await createProfileResponse.json();
+              console.log(`[${requestId}] ✅ New user profile created successfully (fallback mode)`);
+              
+              // Update response with new profile
+              mockResponse.userProfile = {
+                displayName: newProfile.displayName || userId,
+                role: newProfile.role || 'Traveler',
+                preferences: newProfile.preferences || {},
+                recentContext: newProfile.recentContext || [],
+                isNewProfile: true
+              };
+              
+              logTelemetry('chatgpt_user_profile_created_fallback', {
+                requestId,
+                success: true,
+                userId,
+                profileData: mockResponse.userProfile,
+                mode: 'fallback'
+              });
+              
+            } else {
+              console.log(`[${requestId}] ⚠️ Failed to create user profile (fallback mode): ${createProfileResponse.status}`);
+            }
+            
+          } catch (createError) {
+            console.error(`[${requestId}] ❌ Profile creation error (fallback mode):`, createError);
+            
+            logTelemetry('chatgpt_user_profile_creation_error_fallback', {
+              requestId,
+              success: false,
+              error: createError.message,
+              userId,
+              mode: 'fallback'
+            });
           }
-          
-        } catch (createError) {
-          console.error(`[${requestId}] ❌ Profile creation error (fallback mode):`, createError);
-          
-          logTelemetry('chatgpt_user_profile_creation_error_fallback', {
-            requestId,
-            success: false,
-            error: createError.message,
-            userId,
-            mode: 'fallback'
-          });
         }
+        
+        const totalDuration = Date.now() - startTime;
+        console.log(`[${requestId}] 🎉 Request completed with fallback data in ${totalDuration}ms`);
+        
+        // Log fallback telemetry
+        logTelemetry('chatgpt_api_request_fallback', {
+          requestId,
+          success: true,
+          duration: totalDuration,
+          userId: userId || 'anonymous',
+          messageLength: message.length,
+          intent: flightIntent,
+          dataSource: 'fallback_mock_data',
+          searchError: searchError.message,
+          openapiRecoveryFailed: true
+        });
+      
+        res.status(200).json(mockResponse);
       }
-      
-      const totalDuration = Date.now() - startTime;
-      console.log(`[${requestId}] 🎉 Request completed with fallback data in ${totalDuration}ms`);
-      
-      // Log fallback telemetry
-      logTelemetry('chatgpt_api_request_fallback', {
-        requestId,
-        success: true,
-        duration: totalDuration,
-        userId: userId || 'anonymous',
-        messageLength: message.length,
-        intent: flightIntent,
-        dataSource: 'fallback_mock_data',
-        searchError: searchError.message
-      });
-
-      res.status(200).json(mockResponse);
     }
   } catch (error) {
     const totalDuration = Date.now() - startTime;
