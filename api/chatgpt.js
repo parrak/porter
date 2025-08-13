@@ -275,56 +275,155 @@ module.exports = async (req, res) => {
     const flightIntent = await parseFlightIntentWithChatGPT(message);
     
     // Generate realistic flight search response
-    const mockResponse = {
-      success: true,
-      message: `Found flights for your request: "${message}"`,
-      intent: flightIntent,
-      requestId,
-      flights: [
-        {
-          flightNumber: "AA123",
-          route: `${flightIntent.from} → ${flightIntent.to}`,
-          time: "10:00 AM - 11:30 AM",
-          stops: "Direct",
-          price: "$299",
-          seats: 4,
-          airline: "American Airlines",
-          class: flightIntent.class
-        },
-        {
-          flightNumber: "DL456",
-          route: `${flightIntent.from} → ${flightIntent.to}`,
-          time: "2:00 PM - 3:30 PM", 
-          stops: "1 stop",
-          price: "$249",
-          seats: 2,
-          airline: "Delta Airlines",
-          class: flightIntent.class
-        }
-      ],
-      searchParams: {
+    console.log(`[${requestId}] 🔍 Making actual flight search call to search-flights endpoint...`);
+    
+    try {
+      // Call the search-flights endpoint with the parsed intent
+      const searchStartTime = Date.now();
+      
+      // Prepare search parameters
+      const searchParams = {
         from: flightIntent.from,
         to: flightIntent.to,
         date: flightIntent.date,
         passengers: flightIntent.passengers,
-        travelClass: flightIntent.class.toUpperCase()
+        travelClass: flightIntent.class.toUpperCase(),
+        userId: userId || 'anonymous'
+      };
+      
+      console.log(`[${requestId}] 📤 Calling search-flights with params:`, searchParams);
+      
+      // Make internal call to search-flights endpoint
+      const searchResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/search-flights`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Request-ID': requestId,
+          'X-Source': 'chatgpt-endpoint'
+        },
+        body: JSON.stringify(searchParams)
+      });
+      
+      if (!searchResponse.ok) {
+        throw new Error(`Search flights API returned ${searchResponse.status}: ${await searchResponse.text()}`);
       }
-    };
+      
+      const searchData = await searchResponse.json();
+      const searchDuration = Date.now() - searchStartTime;
+      
+      console.log(`[${requestId}] ✅ Search flights completed in ${searchDuration}ms, found ${searchData.flights?.length || 0} flights`);
+      
+      // Log successful search telemetry
+      logTelemetry('chatgpt_flight_search_success', {
+        requestId,
+        success: true,
+        searchDuration,
+        flightsFound: searchData.flights?.length || 0,
+        dataSource: searchData.dataSource || 'unknown',
+        userId: userId || 'anonymous',
+        intent: flightIntent
+      });
+      
+      // Return the actual search results
+      const response = {
+        success: true,
+        message: `Found ${searchData.flights?.length || 0} flights for your request: "${message}"`,
+        intent: flightIntent,
+        requestId,
+        flights: searchData.flights || [],
+        searchParams: searchData.searchParams || searchParams,
+        dataSource: searchData.dataSource || 'unknown',
+        searchDuration: searchDuration
+      };
+      
+      const totalDuration = Date.now() - startTime;
+      console.log(`[${requestId}] 🎉 Request completed successfully in ${totalDuration}ms (with real flight search)`);
+      
+      // Log successful request telemetry
+      logTelemetry('chatgpt_api_request', {
+        requestId,
+        success: true,
+        duration: totalDuration,
+        searchDuration: searchDuration,
+        userId: userId || 'anonymous',
+        messageLength: message.length,
+        intent: flightIntent,
+        flightsFound: searchData.flights?.length || 0,
+        dataSource: searchData.dataSource || 'unknown'
+      });
 
-    const totalDuration = Date.now() - startTime;
-    console.log(`[${requestId}] 🎉 Request completed successfully in ${totalDuration}ms`);
-    
-    // Log successful request telemetry
-    logTelemetry('chatgpt_api_request', {
-      requestId,
-      success: true,
-      duration: totalDuration,
-      userId: userId || 'anonymous',
-      messageLength: message.length,
-      intent: flightIntent
-    });
+      res.status(200).json(response);
+      
+    } catch (searchError) {
+      console.error(`[${requestId}] ❌ Flight search failed:`, searchError);
+      
+      // Log search error telemetry
+      logTelemetry('chatgpt_flight_search_error', {
+        requestId,
+        success: false,
+        error: searchError.message,
+        userId: userId || 'anonymous',
+        intent: flightIntent
+      });
+      
+      // Fallback to mock response if search fails
+      console.log(`[${requestId}] 🔄 Falling back to mock flight data due to search failure...`);
+      
+      const mockResponse = {
+        success: true,
+        message: `Found flights for your request: "${message}" (using fallback data)`,
+        intent: flightIntent,
+        requestId,
+        flights: [
+          {
+            flightNumber: "AA123",
+            route: `${flightIntent.from} → ${flightIntent.to}`,
+            time: "10:00 AM - 11:30 AM",
+            stops: "Direct",
+            price: "$299",
+            seats: 4,
+            airline: "American Airlines",
+            class: flightIntent.class
+          },
+          {
+            flightNumber: "DL456",
+            route: `${flightIntent.from} → ${flightIntent.to}`,
+            time: "2:00 PM - 3:30 PM", 
+            stops: "1 stop",
+            price: "$249",
+            seats: 2,
+            airline: "Delta Airlines",
+            class: flightIntent.class
+          }
+        ],
+        searchParams: {
+          from: flightIntent.from,
+          to: flightIntent.to,
+          date: flightIntent.date,
+          passengers: flightIntent.passengers,
+          travelClass: flightIntent.class.toUpperCase()
+        },
+        dataSource: 'fallback_mock_data',
+        note: 'Real flight search failed, showing sample data'
+      };
 
-    res.status(200).json(mockResponse);
+      const totalDuration = Date.now() - startTime;
+      console.log(`[${requestId}] 🎉 Request completed with fallback data in ${totalDuration}ms`);
+      
+      // Log fallback telemetry
+      logTelemetry('chatgpt_api_request_fallback', {
+        requestId,
+        success: true,
+        duration: totalDuration,
+        userId: userId || 'anonymous',
+        messageLength: message.length,
+        intent: flightIntent,
+        dataSource: 'fallback_mock_data',
+        searchError: searchError.message
+      });
+
+      res.status(200).json(mockResponse);
+    }
   } catch (error) {
     const totalDuration = Date.now() - startTime;
     console.error(`[${requestId}] ❌ Request failed after ${totalDuration}ms:`, error);
