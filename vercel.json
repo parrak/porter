@@ -7,6 +7,44 @@
       "use": "@vercel/node"
     }
   ],
+  "rewrites": [
+    {
+      "source": "/api/health",
+      "destination": "/api/health.js"
+    },
+    {
+      "source": "/api/openapi",
+      "destination": "/api/openapi.js"
+    },
+    {
+      "source": "/api/chatgpt",
+      "destination": "/api/chatgpt.js"
+    },
+    {
+      "source": "/api/search-flights",
+      "destination": "/api/search-flights.js"
+    },
+    {
+      "source": "/api/test",
+      "destination": "/api/test.js"
+    },
+    {
+      "source": "/api/public",
+      "destination": "/api/public.js"
+    },
+    {
+      "source": "/health",
+      "destination": "/api/health.js"
+    },
+    {
+      "source": "/openapi.json",
+      "destination": "/api/openapi.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/api/index.js"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -32,44 +70,6 @@
           "value": "nosniff"
         }
       ]
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/health",
-      "dest": "/api/health.js"
-    },
-    {
-      "src": "/api/openapi",
-      "dest": "/api/openapi.js"
-    },
-    {
-      "src": "/api/chatgpt",
-      "dest": "/api/chatgpt.js"
-    },
-    {
-      "src": "/api/search-flights",
-      "dest": "/api/search-flights.js"
-    },
-    {
-      "src": "/api/test",
-      "dest": "/api/test.js"
-    },
-    {
-      "src": "/api/public",
-      "dest": "/api/public.js"
-    },
-    {
-      "src": "/health",
-      "dest": "/api/health.js"
-    },
-    {
-      "src": "/openapi.json",
-      "dest": "/api/openapi.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.js"
     }
   ]
 }
