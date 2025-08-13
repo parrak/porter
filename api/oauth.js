@@ -25,7 +25,7 @@ const OAUTH_CONFIG = {
  * GET /api/oauth/authorize
  * This is called by ChatGPT to initiate OAuth flow
  */
-module.exports = async (req, res) => {
+async function handleAuthorization(req, res) {
   const requestId = generateRequestId();
   
   console.log(`[${requestId}] 🔐 OAuth authorization request: ${req.method} ${req.url}`);
@@ -519,20 +519,23 @@ async function handleTokenIntrospection(req, res) {
   }
 }
 
-// Main OAuth handler
+// Main OAuth handler - handles all OAuth routes
 async function handleOAuth(req, res) {
   const path = req.url.split('?')[0];
   
-  switch (path) {
-    case '/api/oauth/authorize':
-      return await module.exports(req, res);
-    case '/api/oauth/token':
+  // Extract the specific OAuth endpoint from the path
+  const oauthEndpoint = path.split('/').pop();
+  
+  switch (oauthEndpoint) {
+    case 'authorize':
+      return await handleAuthorization(req, res);
+    case 'token':
       return await handleTokenRequest(req, res);
-    case '/api/oauth/refresh':
+    case 'refresh':
       return await handleTokenRefresh(req, res);
-    case '/api/oauth/userinfo':
+    case 'userinfo':
       return await handleUserInfo(req, res);
-    case '/api/oauth/introspect':
+    case 'introspect':
       return await handleTokenIntrospection(req, res);
     default:
       res.status(404).json({

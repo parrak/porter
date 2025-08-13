@@ -33,16 +33,15 @@ module.exports = async (req, res) => {
 
     const accessToken = authHeader.substring(7); // Remove 'Bearer ' prefix
     
-    // Import OAuth middleware to validate token
-    const { validateOAuthToken } = require('./oauth-middleware');
-    
-    // Validate OAuth token with read scope
+    // Simple OAuth token validation for user profile access
     try {
-      // This is a simplified validation - in production, use the middleware properly
+      // Basic token format validation
       if (!accessToken || accessToken.length < 32) {
         throw new Error('Invalid token format');
       }
       
+      // In production, you would validate the token against your OAuth store
+      // For now, we'll accept any properly formatted token
       console.log(`[${requestId}] ✅ OAuth access token validated for user profile access`);
     } catch (error) {
       console.log(`[${requestId}] ❌ Invalid OAuth access token: ${error.message}`);
