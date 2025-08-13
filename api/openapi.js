@@ -667,7 +667,36 @@ module.exports = (req, res) => {
                 "content": {
                   "application/json": {
                     "schema": {
-                      "type": "object"
+                      "type": "object",
+                      "description": "Complete OpenAPI 3.1.0 specification for the Flight Booking Agent API",
+                      "properties": {
+                        "openapi": {
+                          "type": "string",
+                          "description": "OpenAPI version",
+                          "example": "3.1.0"
+                        },
+                        "info": {
+                          "type": "object",
+                          "description": "API information"
+                        },
+                        "servers": {
+                          "type": "array",
+                          "description": "Server configurations"
+                        },
+                        "paths": {
+                          "type": "object",
+                          "description": "API endpoints"
+                        },
+                        "tags": {
+                          "type": "array",
+                          "description": "API tags"
+                        },
+                        "components": {
+                          "type": "object",
+                          "description": "Reusable components"
+                        }
+                      },
+                      "required": ["openapi", "info", "paths"]
                     }
                   }
                 }
