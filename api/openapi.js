@@ -897,11 +897,24 @@ module.exports = (req, res) => {
                         },
                         "info": {
                           "type": "object",
-                          "description": "API information"
+                          "description": "API information",
+                          "properties": {
+                            "title": { "type": "string" },
+                            "description": { "type": "string" },
+                            "version": { "type": "string" },
+                            "contact": { "type": "object" }
+                          }
                         },
                         "servers": {
                           "type": "array",
-                          "description": "Server configurations"
+                          "description": "Server configurations",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "url": { "type": "string" },
+                              "description": { "type": "string" }
+                            }
+                          }
                         },
                         "paths": {
                           "type": "object",
@@ -909,11 +922,22 @@ module.exports = (req, res) => {
                         },
                         "tags": {
                           "type": "array",
-                          "description": "API tags"
+                          "description": "API tags",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": { "type": "string" },
+                              "description": { "type": "string" }
+                            }
+                          }
                         },
                         "components": {
                           "type": "object",
-                          "description": "Reusable components"
+                          "description": "Reusable components",
+                          "properties": {
+                            "securitySchemes": { "type": "object" },
+                            "schemas": { "type": "object" }
+                          }
                         }
                       },
                       "required": ["openapi", "info", "paths"]
