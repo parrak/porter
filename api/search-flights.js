@@ -35,6 +35,81 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'from, to, and date are required' });
     }
 
+    // Validate date format and check if it's in the past
+    let parsedDate;
+    try {
+      // Try to parse the date string
+      parsedDate = new Date(date);
+      
+      // Check if the date is valid
+      if (isNaN(parsedDate.getTime())) {
+        console.log(`[${requestId}] ❌ Invalid date format: ${date}`);
+        return res.status(400).json({ 
+          error: 'Invalid date format',
+          message: 'Please provide a valid date in YYYY-MM-DD format (e.g., 2025-01-15)',
+          receivedDate: date,
+          examples: ['2025-01-15', '2025-12-25', '2026-06-10']
+        });
+      }
+      
+      // Check if the date is in the past
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Start of today
+      
+      if (parsedDate < today) {
+        console.log(`[${requestId}] ❌ Date is in the past: ${date} (today is ${today.toISOString().split('T')[0]})`);
+        
+        // Generate helpful date suggestions
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        const nextWeek = new Date(today);
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        
+        const nextMonth = new Date(today);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        
+        return res.status(400).json({ 
+          error: 'Date cannot be in the past',
+          message: 'Please select a future date for your flight search',
+          receivedDate: date,
+          today: today.toISOString().split('T')[0],
+          suggestions: [
+            'Try searching for tomorrow or later dates',
+            'Use format: YYYY-MM-DD (e.g., 2025-01-15)',
+            'Check that you\'re using the correct year'
+          ],
+          suggestedDates: [
+            tomorrow.toISOString().split('T')[0],
+            nextWeek.toISOString().split('T')[0],
+            nextMonth.toISOString().split('T')[0]
+          ],
+          note: 'Suggested dates are automatically calculated from today'
+        });
+      }
+      
+      // Check if the date is too far in the future (Amadeus typically allows up to 1 year)
+      const oneYearFromNow = new Date();
+      oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+      
+      if (parsedDate > oneYearFromNow) {
+        console.log(`[${requestId}] ⚠️ Date is very far in the future: ${date}`);
+        // Don't fail, but log a warning
+        console.log(`[${requestId}] ⚠️ Date ${date} is more than 1 year away - Amadeus API may not support this`);
+      }
+      
+      console.log(`[${requestId}] ✅ Date validation passed: ${date} (${parsedDate.toISOString().split('T')[0]})`);
+      
+    } catch (dateError) {
+      console.error(`[${requestId}] ❌ Date parsing error:`, dateError);
+      return res.status(400).json({ 
+        error: 'Date parsing failed',
+        message: 'Unable to parse the provided date. Please use YYYY-MM-DD format.',
+        receivedDate: date,
+        examples: ['2025-01-15', '2025-12-25', '2026-06-10']
+      });
+    }
+
     // Log search attempt
     logTelemetry('flight_search_attempt', {
       requestId,
@@ -81,6 +156,32 @@ module.exports = async (req, res) => {
         
       } catch (amadeusError) {
         console.error(`[${requestId}] ❌ Amadeus API search failed:`, amadeusError);
+        
+        // Check if this is a user-friendly error that we should return directly
+        if (amadeusError.statusCode === 400 && amadeusError.userFriendlyMessage) {
+          console.log(`[${requestId}] 📝 Returning user-friendly error: ${amadeusError.userFriendlyMessage}`);
+          
+          // Log Amadeus error telemetry
+          logTelemetry('amadeus_search_error', {
+            requestId,
+            success: false,
+            error: amadeusError.message,
+            errorCode: amadeusError.errorCode,
+            userFriendlyMessage: amadeusError.userFriendlyMessage,
+            searchParams: { from, to, date, passengers, travelClass },
+            userId: userId || 'anonymous'
+          });
+          
+          // Return the user-friendly error instead of falling back to mock data
+          return res.status(400).json({
+            error: 'Flight search failed',
+            message: amadeusError.userFriendlyMessage,
+            suggestions: amadeusError.suggestions || [],
+            requestId,
+            errorCode: amadeusError.errorCode,
+            searchParams: { from, to, date, passengers, travelClass }
+          });
+        }
         
         // Log Amadeus error telemetry
         logTelemetry('amadeus_search_error', {
@@ -208,7 +309,123 @@ async function searchAmadeusFlights(from, to, date, passengers, travelClass, req
     if (!searchResponse.ok) {
       const errorText = await searchResponse.text();
       console.error(`[${requestId}] ❌ Amadeus flight search failed: ${searchResponse.status} - ${errorText}`);
-      throw new Error(`Amadeus flight search failed: ${searchResponse.status}`);
+      
+      // Try to parse the error response for more details
+      let errorDetails = {};
+      try {
+        errorDetails = JSON.parse(errorText);
+      } catch (parseError) {
+        console.log(`[${requestId}] ⚠️ Could not parse Amadeus error response:`, parseError);
+      }
+      
+      // Provide specific error messages based on common Amadeus error codes
+      let userFriendlyMessage = 'Flight search failed';
+      let suggestions = [];
+      
+      if (errorDetails.errors && errorDetails.errors.length > 0) {
+        const error = errorDetails.errors[0];
+        
+        switch (error.code) {
+          case 425: // INVALID DATE
+            if (error.detail && error.detail.includes('past')) {
+              userFriendlyMessage = 'The selected date is in the past';
+              suggestions = [
+                'Please select a future date for your flight search',
+                'Check that you\'re using the correct year',
+                'Try searching for tomorrow or later dates'
+              ];
+            } else {
+              userFriendlyMessage = 'Invalid date format or date';
+              suggestions = [
+                'Use YYYY-MM-DD format (e.g., 2025-01-15)',
+                'Ensure the date is not in the past',
+                'Check that the date is within the next 12 months'
+              ];
+            }
+            break;
+            
+          case 400: // BAD REQUEST
+            if (error.detail && error.detail.includes('origin')) {
+              userFriendlyMessage = 'Invalid departure airport code';
+              suggestions = [
+                'Please use valid 3-letter airport codes (e.g., JFK, LAX, ORD)',
+                'Check the spelling of your departure city',
+                'Ensure the airport code exists in our system'
+              ];
+            } else if (error.detail && error.detail.includes('destination')) {
+              userFriendlyMessage = 'Invalid arrival airport code';
+              suggestions = [
+                'Please use valid 3-letter airport codes (e.g., JFK, LAX, ORD)',
+                'Check the spelling of your arrival city',
+                'Ensure the airport code exists in our system'
+              ];
+            } else {
+              userFriendlyMessage = 'Invalid search parameters';
+              suggestions = [
+                'Check all your search parameters',
+                'Ensure airport codes are valid 3-letter codes',
+                'Verify the date format is YYYY-MM-DD'
+              ];
+            }
+            break;
+            
+          case 401: // UNAUTHORIZED
+            userFriendlyMessage = 'Authentication failed';
+            suggestions = [
+              'This appears to be a system configuration issue',
+              'Please try again later or contact support'
+            ];
+            break;
+            
+          case 429: // TOO MANY REQUESTS
+            userFriendlyMessage = 'Too many search requests';
+            suggestions = [
+              'Please wait a moment before searching again',
+              'Try reducing the frequency of your searches'
+            ];
+            break;
+            
+          case 500: // INTERNAL SERVER ERROR
+          case 502: // BAD GATEWAY
+          case 503: // SERVICE UNAVAILABLE
+            userFriendlyMessage = 'Flight search service temporarily unavailable';
+            suggestions = [
+              'Please try again in a few minutes',
+              'The flight search service may be experiencing issues'
+            ];
+            break;
+            
+          default:
+            userFriendlyMessage = error.title || 'Flight search failed';
+            suggestions = [
+              'Please check your search parameters',
+              'Try again with different dates or routes'
+            ];
+        }
+      }
+      
+      // Log detailed error information
+      logTelemetry('amadeus_search_error_detailed', {
+        requestId,
+        success: false,
+        statusCode: searchResponse.status,
+        errorCode: errorDetails.errors?.[0]?.code,
+        errorTitle: errorDetails.errors?.[0]?.title,
+        errorDetail: errorDetails.errors?.[0]?.detail,
+        searchParams: { from, to, date, passengers, travelClass },
+        userFriendlyMessage,
+        suggestions
+      });
+      
+      // Throw a more informative error
+      const enhancedError = new Error(`Amadeus flight search failed: ${searchResponse.status} - ${userFriendlyMessage}`);
+      enhancedError.statusCode = searchResponse.status;
+      enhancedError.errorCode = errorDetails.errors?.[0]?.code;
+      enhancedError.userFriendlyMessage = userFriendlyMessage;
+      enhancedError.suggestions = suggestions;
+      enhancedError.originalError = errorDetails;
+      
+      throw enhancedError;
     }
 
     const searchData = await searchResponse.json();
