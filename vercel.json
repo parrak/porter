@@ -33,6 +33,10 @@
       "destination": "/api/users.js"
     },
     {
+      "source": "/api/oauth/:path*",
+      "destination": "/api/oauth.js"
+    },
+    {
       "source": "/api/test",
       "destination": "/api/test.js"
     },

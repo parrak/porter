@@ -41,23 +41,32 @@ module.exports = (req, res) => {
       ],
       "components": {
         "securitySchemes": {
+          "oauth": {
+            "type": "oauth2",
+            "flows": {
+              "authorizationCode": {
+                "authorizationUrl": "https://chatgpt.com/aip/{g-YOUR-GPT-ID-HERE}/oauth/authorize",
+                "tokenUrl": "https://chatgpt.com/aip/{g-YOUR-GPT-ID-HERE}/oauth/token",
+                "scopes": {
+                  "read": "Read user profile and preferences",
+                  "write": "Update user preferences and booking history",
+                  "book": "Book flights on behalf of user"
+                }
+              }
+            },
+            "description": "OAuth 2.0 authentication for user identity and personalization"
+          },
           "ApiKeyAuth": {
             "type": "apiKey",
             "in": "header",
             "name": "X-API-Key",
-            "description": "API key for authentication. Include this in the header as 'X-API-Key: your_api_key_here'"
-          },
-          "BearerAuth": {
-            "type": "http",
-            "scheme": "bearer",
-            "bearerFormat": "JWT",
-            "description": "JWT token for authentication. Include this in the header as 'Authorization: Bearer your_jwt_token_here'"
+            "description": "API key for service-to-service authentication (alternative to OAuth)"
           }
         }
       },
       "security": [
         {
-          "ApiKeyAuth": []
+          "oauth": ["read", "write", "book"]
         }
       ],
       "paths": {
@@ -69,7 +78,7 @@ module.exports = (req, res) => {
             "tags": ["Flight Search"],
             "security": [
               {
-                "ApiKeyAuth": []
+                "oauth": ["read", "write", "book"]
               }
             ],
             "requestBody": {
@@ -268,7 +277,7 @@ module.exports = (req, res) => {
             "summary": "Search for available flights",
             "security": [
               {
-                "ApiKeyAuth": []
+                "oauth": ["read", "write", "book"]
               }
             ],
             "description": "Search for flights using specific parameters. Integrates with Amadeus API for real-time flight data.",
@@ -383,7 +392,7 @@ module.exports = (req, res) => {
             "summary": "Book a selected flight",
             "security": [
               {
-                "ApiKeyAuth": []
+                "oauth": ["book"]
               }
             ],
             "description": "Book a flight using the flight offer ID from search results. Integrates with Amadeus API for real bookings.",
@@ -625,7 +634,7 @@ module.exports = (req, res) => {
             "tags": ["User Management"],
             "security": [
               {
-                "ApiKeyAuth": []
+                "oauth": ["read"]
               }
             ],
             "parameters": [
