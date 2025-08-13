@@ -20,6 +20,9 @@ const OAUTH_CONFIG = {
   refreshTokenExpiry: 2592000 // 30 days
 };
 
+// Allow ChatGPT Actions redirect URIs
+const CHATGPT_ACTIONS_PATTERN = /^https:\/\/chatgpt\.com\/aip\/g-[a-zA-Z0-9]+\/oauth\/callback$/;
+
 /**
  * OAuth Authorization Endpoint
  * GET /api/oauth/authorize
@@ -77,10 +80,16 @@ async function handleAuthorization(req, res) {
         });
       }
       
-      if (redirect_uri !== OAUTH_CONFIG.redirectUri) {
+      // Validate redirect URI - allow ChatGPT Actions redirect URIs
+      const isValidRedirectUri = redirect_uri === OAUTH_CONFIG.redirectUri || 
+                                CHATGPT_ACTIONS_PATTERN.test(redirect_uri);
+      
+      if (!isValidRedirectUri) {
+        console.log(`[${requestId}] ❌ Invalid redirect URI: ${redirect_uri}`);
+        console.log(`[${requestId}] 📋 Expected pattern: https://chatgpt.com/aip/g-XXXXXXXX/oauth/callback`);
         return res.status(400).json({
           error: 'invalid_redirect_uri',
-          error_description: 'Invalid redirect URI'
+          error_description: 'Invalid redirect URI. Must be a valid ChatGPT Actions callback URL.'
         });
       }
       
