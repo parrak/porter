@@ -21,6 +21,11 @@ module.exports = (req, res) => {
     
     console.log(`[OPENAPI] Generating specification with server URL: ${serverUrl}`);
     
+    // Dynamically determine OAuth URLs based on server URL
+    const oauthBaseUrl = serverUrl;
+    const authorizationUrl = `${oauthBaseUrl}/api/oauth/authorize`;
+    const tokenUrl = `${oauthBaseUrl}/api/oauth/token`;
+    
     // Embedded OpenAPI specification for GPT-5 compatibility
     const openapiSpec = {
       "openapi": "3.1.0",
@@ -45,22 +50,78 @@ module.exports = (req, res) => {
             "type": "oauth2",
             "flows": {
               "authorizationCode": {
-                "authorizationUrl": "https://porter-pxjgnn1nm-rakesh-paridas-projects.vercel.app/api/oauth/authorize",
-                "tokenUrl": "https://porter-pxjgnn1nm-rakesh-paridas-projects.vercel.app/api/oauth/token",
+                "authorizationUrl": authorizationUrl,
+                "tokenUrl": tokenUrl,
+                "refreshUrl": `${oauthBaseUrl}/api/oauth/refresh`,
                 "scopes": {
                   "read": "Read user profile and preferences",
                   "write": "Update user preferences and booking history",
                   "book": "Book flights on behalf of user"
                 }
               }
-            },
-            "description": "OAuth 2.0 authentication for user identity and personalization"
+            }
+          }
+        },
+        "schemas": {
+          "Flight": {
+            "type": "object",
+            "properties": {
+              "flightNumber": {
+                "type": "string",
+                "description": "Flight number"
+              },
+              "route": {
+                "type": "string",
+                "description": "Route description"
+              },
+              "time": {
+                "type": "string",
+                "description": "Departure and arrival times"
+              },
+              "stops": {
+                "type": "string",
+                "description": "Number of stops"
+              },
+              "price": {
+                "type": "string",
+                "description": "Ticket price"
+              },
+              "seats": {
+                "type": "integer",
+                "description": "Available seats"
+              },
+              "airline": {
+                "type": "string",
+                "description": "Airline name"
+              },
+              "class": {
+                "type": "string",
+                "description": "Travel class"
+              }
+            }
           },
-          "ApiKeyAuth": {
-            "type": "apiKey",
-            "in": "header",
-            "name": "X-API-Key",
-            "description": "API key for service-to-service authentication (alternative to OAuth)"
+          "UserProfile": {
+            "type": "object",
+            "properties": {
+              "displayName": {
+                "type": "string",
+                "description": "User's display name"
+              },
+              "role": {
+                "type": "string",
+                "description": "User's role or travel style"
+              },
+              "preferences": {
+                "type": "object",
+                "description": "User preferences",
+                "additionalProperties": true
+              },
+              "recentContext": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Recent context for personalization"
+              }
+            }
           }
         }
       },
@@ -966,71 +1027,7 @@ module.exports = (req, res) => {
           "name": "System",
           "description": "System health and API information"
         }
-      ],
-      "components": {
-        "schemas": {
-          "Flight": {
-            "type": "object",
-            "properties": {
-              "flightNumber": {
-                "type": "string",
-                "description": "Flight number"
-              },
-              "route": {
-                "type": "string",
-                "description": "Route description"
-              },
-              "time": {
-                "type": "string",
-                "description": "Departure and arrival times"
-              },
-              "stops": {
-                "type": "string",
-                "description": "Number of stops"
-              },
-              "price": {
-                "type": "string",
-                "description": "Ticket price"
-              },
-              "seats": {
-                "type": "integer",
-                "description": "Available seats"
-              },
-              "airline": {
-                "type": "string",
-                "description": "Airline name"
-              },
-              "class": {
-                "type": "string",
-                "description": "Travel class"
-              }
-            }
-          },
-          "UserProfile": {
-            "type": "object",
-            "properties": {
-              "displayName": {
-                "type": "string",
-                "description": "User's display name"
-              },
-              "role": {
-                "type": "string",
-                "description": "User's role or travel style"
-              },
-              "preferences": {
-                "type": "object",
-                "description": "User preferences",
-                "additionalProperties": true
-              },
-              "recentContext": {
-                "type": "array",
-                "items": { "type": "string" },
-                "description": "Recent context for personalization"
-              }
-            }
-          }
-        }
-      }
+      ]
     };
     
     res.setHeader('Content-Type', 'application/json');
