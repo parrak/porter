@@ -27,12 +27,34 @@ module.exports = async (req, res) => {
   // OAuth 2.0 Authentication Required for Flight Booking
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.log(`[${requestId}] ❌ Missing OAuth access token`);
+    console.log(`[${requestId}] ❌ Missing OAuth access token - redirecting to OAuth login`);
+    
+    // Instead of erroring out, provide OAuth login information
     return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'OAuth access token is required for flight booking',
-      code: 'MISSING_OAUTH_TOKEN',
-      requestId
+      error: 'Authentication Required',
+      message: 'Please log in to complete your flight booking',
+      code: 'OAUTH_LOGIN_REQUIRED',
+      requestId,
+      oauth: {
+        message: 'Flight booking requires user authentication',
+        loginUrl: 'https://porter-preview.vercel.app/api/oauth/authorize',
+        scopes: ['book'],
+        description: 'You need to authorize this app to book flights on your behalf',
+        nextSteps: [
+          'Click the login link above to authorize',
+          'Grant the "book" permission when prompted',
+          'Return to complete your flight booking'
+        ]
+      },
+      help: {
+        title: 'How to complete your booking:',
+        steps: [
+          '1. Click the OAuth login link above',
+          '2. Sign in with your credentials',
+          '3. Grant permission to book flights',
+          '4. Return here to complete your booking'
+        ]
+      }
     });
   }
 
@@ -51,10 +73,30 @@ module.exports = async (req, res) => {
   } catch (error) {
     console.log(`[${requestId}] ❌ Invalid OAuth access token: ${error.message}`);
     return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Invalid OAuth access token',
-      code: 'INVALID_OAUTH_TOKEN',
-      requestId
+      error: 'Authentication Required',
+      message: 'Your login session has expired. Please log in again to complete your flight booking.',
+      code: 'OAUTH_TOKEN_EXPIRED',
+      requestId,
+      oauth: {
+        message: 'Your session has expired - please log in again',
+        loginUrl: 'https://porter-preview.vercel.app/api/oauth/authorize',
+        scopes: ['book'],
+        description: 'You need to re-authorize this app to book flights on your behalf',
+        nextSteps: [
+          'Click the login link above to re-authorize',
+          'Grant the "book" permission when prompted',
+          'Return to complete your flight booking'
+        ]
+      },
+      help: {
+        title: 'How to complete your booking:',
+        steps: [
+          '1. Click the OAuth login link above',
+          '2. Sign in with your credentials again',
+          '3. Grant permission to book flights',
+          '4. Return here to complete your booking'
+        ]
+      }
     });
   }
 

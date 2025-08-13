@@ -22,12 +22,32 @@ module.exports = async (req, res) => {
     // OAuth 2.0 Authentication Required for User Profile Access
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log(`[${requestId}] ❌ Missing OAuth access token`);
+      console.log(`[${requestId}] ❌ Missing OAuth access token - redirecting to OAuth login`);
       return res.status(401).json({
-        error: 'Unauthorized',
-        message: 'OAuth access token is required for user profile access',
-        code: 'MISSING_OAUTH_TOKEN',
-        requestId
+        error: 'Authentication Required',
+        message: 'Please log in to access your user profile',
+        code: 'OAUTH_LOGIN_REQUIRED',
+        requestId,
+        oauth: {
+          message: 'User profile access requires authentication',
+          loginUrl: 'https://porter-preview.vercel.app/api/oauth/authorize',
+          scopes: ['read'],
+          description: 'You need to authorize this app to access your profile information',
+          nextSteps: [
+            'Click the login link above to authorize',
+            'Grant the "read" permission when prompted',
+            'Return to access your profile'
+          ]
+        },
+        help: {
+          title: 'How to access your profile:',
+          steps: [
+            '1. Click the OAuth login link above',
+            '2. Sign in with your credentials',
+            '3. Grant permission to read your profile',
+            '4. Return here to access your information'
+          ]
+        }
       });
     }
 
@@ -46,10 +66,30 @@ module.exports = async (req, res) => {
     } catch (error) {
       console.log(`[${requestId}] ❌ Invalid OAuth access token: ${error.message}`);
       return res.status(401).json({
-        error: 'Unauthorized',
-        message: 'Invalid OAuth access token',
-        code: 'INVALID_OAUTH_TOKEN',
-        requestId
+        error: 'Authentication Required',
+        message: 'Your login session has expired. Please log in again to access your profile.',
+        code: 'OAUTH_TOKEN_EXPIRED',
+        requestId,
+        oauth: {
+          message: 'Your session has expired - please log in again',
+          loginUrl: 'https://porter-preview.vercel.app/api/oauth/authorize',
+          scopes: ['read'],
+          description: 'You need to re-authorize this app to access your profile information',
+          nextSteps: [
+            'Click the login link above to re-authorize',
+            'Grant the "read" permission when prompted',
+            'Return to access your profile'
+          ]
+        },
+        help: {
+          title: 'How to access your profile:',
+          steps: [
+            '1. Click the OAuth login link above',
+            '2. Sign in with your credentials again',
+            '3. Grant permission to read your profile',
+            '4. Return here to access your information'
+          ]
+        }
       });
     }
 
