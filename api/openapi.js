@@ -47,26 +47,62 @@ module.exports = (req, res) => {
                 }
               }
             },
-            "responses": {
-              "200": {
-                "description": "Flight search results",
-                "content": {
-                  "application/json": {
-                    "schema": {
-                      "type": "object",
-                      "properties": {
-                        "success": {
-                          "type": "boolean"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
+                         "responses": {
+               "200": {
+                 "description": "Flight search results",
+                 "content": {
+                   "application/json": {
+                     "schema": {
+                       "type": "object",
+                       "properties": {
+                         "success": {
+                           "type": "boolean"
+                         },
+                         "message": {
+                           "type": "string"
+                         },
+                         "intent": {
+                           "type": "object",
+                           "properties": {
+                             "from": { "type": "string" },
+                             "to": { "type": "string" },
+                             "date": { "type": "string" },
+                             "passengers": { "type": "integer" },
+                             "class": { "type": "string" }
+                           }
+                         },
+                         "flights": {
+                           "type": "array",
+                           "items": {
+                             "type": "object",
+                             "properties": {
+                               "flightNumber": { "type": "string" },
+                               "route": { "type": "string" },
+                               "time": { "type": "string" },
+                               "stops": { "type": "string" },
+                               "price": { "type": "string" },
+                               "seats": { "type": "integer" },
+                               "airline": { "type": "string" },
+                               "class": { "type": "string" }
+                             }
+                           }
+                         },
+                         "searchParams": {
+                           "type": "object",
+                           "properties": {
+                             "from": { "type": "string" },
+                             "to": { "type": "string" },
+                             "date": { "type": "string" },
+                             "passengers": { "type": "integer" },
+                             "travelClass": { "type": "string" }
+                           }
+                         }
+                       }
+                     }
+                   }
+                 }
+               }
+             }
           }
         },
                  "/api/search-flights": {
@@ -82,15 +118,29 @@ module.exports = (req, res) => {
                      "properties": {
                        "from": {
                          "type": "string",
-                         "description": "Departure airport code"
+                         "description": "Departure airport code (e.g., SEA, LAX)"
                        },
                        "to": {
                          "type": "string",
-                         "description": "Destination airport code"
+                         "description": "Destination airport code (e.g., YVR, JFK)"
                        },
                        "date": {
                          "type": "string",
                          "description": "Travel date (YYYY-MM-DD)"
+                       },
+                       "passengers": {
+                         "type": "integer",
+                         "description": "Number of passengers",
+                         "default": 1
+                       },
+                       "travelClass": {
+                         "type": "string",
+                         "description": "Travel class (ECONOMY, BUSINESS, FIRST)",
+                         "default": "ECONOMY"
+                       },
+                       "userId": {
+                         "type": "string",
+                         "description": "User identifier (optional)"
                        }
                      },
                      "required": ["from", "to", "date"]
