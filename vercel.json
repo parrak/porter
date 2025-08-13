@@ -28,10 +28,6 @@
           "value": "ALLOWALL"
         },
         {
-          "key": "WWW-Authenticate",
-          "value": ""
-        },
-        {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
         }
