@@ -268,11 +268,125 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    console.log(`[${requestId}] 👤 User ID: ${userId || 'anonymous'}`);
+    console.log(`[${requestId}] 👤 User ID: ${userId || 'missing - will prompt for one'}`);
     console.log(`[${requestId}] 💬 Processing message: "${message}"`);
+
+    // If userId is missing, prompt the user to provide one
+    if (!userId) {
+      console.log(`[${requestId}] 🔍 No user ID provided - prompting user for identification`);
+      
+      const promptResponse = {
+        success: false,
+        requiresUserId: true,
+        message: "To provide you with a personalized flight search experience, I need to know who you are. Please provide one of the following:\n\n" +
+                 "• Your email address (e.g., 'demo@example.com')\n" +
+                 "• A unique identifier code\n" +
+                 "• Or just tell me your name and I'll create a profile for you\n\n" +
+                 "Once you provide this, I'll remember your preferences and travel history for future searches.",
+        requestId,
+        nextStep: "Please respond with your identifier, and I'll search for flights with your personalized context.",
+        examples: [
+          "demo@example.com",
+          "traveler123", 
+          "My name is John and I'm a business traveler",
+          "I'm Sarah, I prefer budget flights and window seats"
+        ]
+      };
+      
+      // Log the prompt telemetry
+      logTelemetry('chatgpt_userid_prompt', {
+        requestId,
+        success: false,
+        messageLength: message.length,
+        promptType: 'user_identification'
+      });
+      
+      return res.status(200).json(promptResponse);
+    }
 
     // Parse flight search intent using ChatGPT
     const flightIntent = await parseFlightIntentWithChatGPT(message);
+    
+    // Now that we have a userId, let's get their profile for personalization
+    console.log(`[${requestId}] 👤 Fetching user profile for personalization: ${userId}`);
+    
+    let userProfile = null;
+    let profileFetchDuration = 0;
+    
+    try {
+      const profileStartTime = Date.now();
+      
+      // Call the users endpoint to get profile data
+      const profileResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/users/${encodeURIComponent(userId)}`, {
+        method: 'GET',
+        headers: {
+          'X-Request-ID': requestId,
+          'X-Source': 'chatgpt-endpoint'
+        }
+      });
+      
+      if (profileResponse.ok) {
+        userProfile = await profileResponse.json();
+        profileFetchDuration = Date.now() - profileStartTime;
+        console.log(`[${requestId}] ✅ User profile retrieved: ${userProfile.displayName} (${userProfile.role})`);
+        
+        // Log successful profile retrieval
+        logTelemetry('chatgpt_user_profile_retrieved', {
+          requestId,
+          success: true,
+          duration: profileFetchDuration,
+          userId,
+          hasPreferences: !!userProfile.preferences,
+          hasRecentContext: !!userProfile.recentContext,
+          userRole: userProfile.role
+        });
+        
+        // Personalize the response based on user profile
+        if (userProfile.preferences) {
+          console.log(`[${requestId}] 🎨 Applying user preferences:`, userProfile.preferences);
+          
+          // Adjust flight search based on preferences
+          if (userProfile.preferences.preferredAirlines && userProfile.preferences.preferredAirlines.length > 0) {
+            console.log(`[${requestId}] ✈️ User prefers airlines:`, userProfile.preferences.preferredAirlines);
+          }
+          
+          if (userProfile.preferences.travelStyle) {
+            console.log(`[${requestId}] 🎯 User travel style:`, userProfile.preferences.travelStyle);
+          }
+        }
+        
+        // Show recent context to user
+        if (userProfile.recentContext && userProfile.recentContext.length > 0) {
+          console.log(`[${requestId}] 📚 User recent context:`, userProfile.recentContext);
+        }
+        
+      } else if (profileResponse.status === 404) {
+        // User profile doesn't exist, create one
+        console.log(`[${requestId}] 🆕 User profile not found, will create one after flight search`);
+        
+        logTelemetry('chatgpt_user_profile_not_found', {
+          requestId,
+          success: false,
+          userId,
+          action: 'will_create_after_search'
+        });
+        
+      } else {
+        console.log(`[${requestId}] ⚠️ Profile fetch failed: ${profileResponse.status}`);
+      }
+      
+    } catch (profileError) {
+      console.error(`[${requestId}] ❌ Profile fetch error:`, profileError);
+      
+      logTelemetry('chatgpt_user_profile_error', {
+        requestId,
+        success: false,
+        error: profileError.message,
+        userId
+      });
+      
+      // Continue without profile - don't fail the entire request
+    }
     
     // Generate realistic flight search response
     console.log(`[${requestId}] 🔍 Making actual flight search call to search-flights endpoint...`);
@@ -333,8 +447,80 @@ module.exports = async (req, res) => {
         flights: searchData.flights || [],
         searchParams: searchData.searchParams || searchParams,
         dataSource: searchData.dataSource || 'unknown',
-        searchDuration: searchDuration
+        searchDuration: searchDuration,
+        userProfile: userProfile ? {
+          displayName: userProfile.displayName,
+          role: userProfile.role,
+          preferences: userProfile.preferences,
+          recentContext: userProfile.recentContext
+        } : null
       };
+      
+      // If user profile doesn't exist, create one with the search context
+      if (!userProfile && searchData.flights && searchData.flights.length > 0) {
+        console.log(`[${requestId}] 🆕 Creating new user profile for: ${userId}`);
+        
+        try {
+          const createProfileResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/users/${encodeURIComponent(userId)}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Request-ID': requestId,
+              'X-Source': 'chatgpt-endpoint'
+            },
+            body: JSON.stringify({
+              displayName: userId.includes('@') ? userId.split('@')[0] : userId,
+              role: 'Traveler',
+              preferences: {
+                tone: 'friendly',
+                format: 'detailed',
+                travelStyle: 'flexible'
+              },
+              recentContext: [
+                `First flight search: ${flightIntent.from} → ${flightIntent.to}`,
+                `Searched for ${flightIntent.passengers} passenger(s)`,
+                `Preferred class: ${flightIntent.class}`,
+                `Found ${searchData.flights.length} flights`
+              ],
+              consent: true
+            })
+          });
+          
+          if (createProfileResponse.ok) {
+            const newProfile = await createProfileResponse.json();
+            console.log(`[${requestId}] ✅ New user profile created successfully`);
+            
+            // Update response with new profile
+            response.userProfile = {
+              displayName: newProfile.displayName || userId,
+              role: newProfile.role || 'Traveler',
+              preferences: newProfile.preferences || {},
+              recentContext: newProfile.recentContext || [],
+              isNewProfile: true
+            };
+            
+            logTelemetry('chatgpt_user_profile_created', {
+              requestId,
+              success: true,
+              userId,
+              profileData: response.userProfile
+            });
+            
+          } else {
+            console.log(`[${requestId}] ⚠️ Failed to create user profile: ${createProfileResponse.status}`);
+          }
+          
+        } catch (createError) {
+          console.error(`[${requestId}] ❌ Profile creation error:`, createError);
+          
+          logTelemetry('chatgpt_user_profile_creation_error', {
+            requestId,
+            success: false,
+            error: createError.message,
+            userId
+          });
+        }
+      }
       
       const totalDuration = Date.now() - startTime;
       console.log(`[${requestId}] 🎉 Request completed successfully in ${totalDuration}ms (with real flight search)`);
@@ -349,7 +535,9 @@ module.exports = async (req, res) => {
         messageLength: message.length,
         intent: flightIntent,
         flightsFound: searchData.flights?.length || 0,
-        dataSource: searchData.dataSource || 'unknown'
+        dataSource: searchData.dataSource || 'unknown',
+        hasUserProfile: !!response.userProfile,
+        profileFetchDuration: profileFetchDuration
       });
 
       res.status(200).json(response);
@@ -404,9 +592,83 @@ module.exports = async (req, res) => {
           travelClass: flightIntent.class.toUpperCase()
         },
         dataSource: 'fallback_mock_data',
-        note: 'Real flight search failed, showing sample data'
+        note: 'Real flight search failed, showing sample data',
+        userProfile: userProfile ? {
+          displayName: userProfile.displayName,
+          role: userProfile.role,
+          preferences: userProfile.preferences,
+          recentContext: userProfile.recentContext
+        } : null
       };
 
+      // If user profile doesn't exist, create one with the fallback context
+      if (!userProfile) {
+        console.log(`[${requestId}] 🆕 Creating new user profile for: ${userId} (fallback mode)`);
+        
+        try {
+          const createProfileResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/users/${encodeURIComponent(userId)}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Request-ID': requestId,
+              'X-Source': 'chatgpt-endpoint-fallback'
+            },
+            body: JSON.stringify({
+              displayName: userId.includes('@') ? userId.split('@')[0] : userId,
+              role: 'Traveler',
+              preferences: {
+                tone: 'friendly',
+                format: 'detailed',
+                travelStyle: 'flexible'
+              },
+              recentContext: [
+                `First flight search (fallback): ${flightIntent.from} → ${flightIntent.to}`,
+                `Searched for ${flightIntent.passengers} passenger(s)`,
+                `Preferred class: ${flightIntent.class}`,
+                `Used fallback data due to search failure`
+              ],
+              consent: true
+            })
+          });
+          
+          if (createProfileResponse.ok) {
+            const newProfile = await createProfileResponse.json();
+            console.log(`[${requestId}] ✅ New user profile created successfully (fallback mode)`);
+            
+            // Update response with new profile
+            mockResponse.userProfile = {
+              displayName: newProfile.displayName || userId,
+              role: newProfile.role || 'Traveler',
+              preferences: newProfile.preferences || {},
+              recentContext: newProfile.recentContext || [],
+              isNewProfile: true
+            };
+            
+            logTelemetry('chatgpt_user_profile_created_fallback', {
+              requestId,
+              success: true,
+              userId,
+              profileData: mockResponse.userProfile,
+              mode: 'fallback'
+            });
+            
+          } else {
+            console.log(`[${requestId}] ⚠️ Failed to create user profile (fallback mode): ${createProfileResponse.status}`);
+          }
+          
+        } catch (createError) {
+          console.error(`[${requestId}] ❌ Profile creation error (fallback mode):`, createError);
+          
+          logTelemetry('chatgpt_user_profile_creation_error_fallback', {
+            requestId,
+            success: false,
+            error: createError.message,
+            userId,
+            mode: 'fallback'
+          });
+        }
+      }
+      
       const totalDuration = Date.now() - startTime;
       console.log(`[${requestId}] 🎉 Request completed with fallback data in ${totalDuration}ms`);
       
