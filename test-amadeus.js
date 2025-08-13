@@ -73,3 +73,4 @@ async function testFlightSearch() {
 }
 
 testFlightSearch();
+

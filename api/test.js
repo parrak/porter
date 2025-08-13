@@ -21,3 +21,4 @@ module.exports = (req, res) => {
     url: req.url
   });
 };
+

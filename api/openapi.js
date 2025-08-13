@@ -26,7 +26,7 @@ module.exports = (req, res) => {
       "openapi": "3.1.0",
       "info": {
         "title": "Flight Booking Agent",
-        "description": "Search for flights using natural language or specific parameters",
+        "description": "Search for flights using natural language or specific parameters. This API supports user-aware personalization for Custom GPTs.",
         "version": "1.0.0",
         "contact": {
           "name": "Flight Booking Agent API",
@@ -60,8 +60,8 @@ module.exports = (req, res) => {
                       },
                       "userId": {
                         "type": "string",
-                        "description": "Optional user identifier for tracking",
-                        "example": "user_123"
+                        "description": "Optional user identifier for tracking and personalization",
+                        "example": "demo@example.com"
                       }
                     },
                     "required": ["message"]
@@ -278,8 +278,8 @@ module.exports = (req, res) => {
                       },
                       "userId": {
                         "type": "string",
-                        "description": "User identifier for tracking (optional)",
-                        "example": "user_123"
+                        "description": "User identifier for tracking and personalization (optional)",
+                        "example": "demo@example.com"
                       }
                     },
                     "required": ["from", "to", "date"]
@@ -401,6 +401,230 @@ module.exports = (req, res) => {
             }
           }
         },
+        "/api/users/{id}": {
+          "get": {
+            "summary": "Fetch minimal user profile for personalization",
+            "description": "Get user profile data for Custom GPT personalization. Returns display name, role, preferences, and recent context.",
+            "operationId": "getUserProfile",
+            "tags": ["User Management"],
+            "parameters": [
+              {
+                "name": "id",
+                "in": "path",
+                "required": true,
+                "description": "User identifier (email, code, or ID)",
+                "schema": { "type": "string" },
+                "example": "demo@example.com"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "User profile data for personalization",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "success": {
+                          "type": "boolean",
+                          "description": "Whether the request was successful"
+                        },
+                        "displayName": {
+                          "type": "string",
+                          "description": "User's display name for addressing",
+                          "example": "Demo User"
+                        },
+                        "role": {
+                          "type": "string",
+                          "description": "User's role or travel style",
+                          "example": "Business Traveler"
+                        },
+                        "preferences": {
+                          "type": "object",
+                          "description": "User preferences for personalization",
+                          "properties": {
+                            "tone": {
+                              "type": "string",
+                              "description": "Preferred communication tone",
+                              "example": "professional"
+                            },
+                            "format": {
+                              "type": "string",
+                              "description": "Preferred response format",
+                              "example": "concise"
+                            },
+                            "travelStyle": {
+                              "type": "string",
+                              "description": "User's travel style preference",
+                              "example": "business"
+                            },
+                            "preferredAirlines": {
+                              "type": "array",
+                              "items": { "type": "string" },
+                              "description": "Preferred airlines",
+                              "example": ["American Airlines", "Delta"]
+                            },
+                            "seatPreference": {
+                              "type": "string",
+                              "description": "Seat preference",
+                              "example": "aisle"
+                            }
+                          }
+                        },
+                        "recentContext": {
+                          "type": "array",
+                          "items": { "type": "string" },
+                          "description": "Recent context bullets for the GPT to read aloud",
+                          "example": [
+                            "Frequently travels JFK to LAX",
+                            "Prefers business class for long flights",
+                            "Books 2-3 weeks in advance"
+                          ]
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "description": "Request identifier for tracking"
+                        }
+                      },
+                      "required": ["success", "displayName"]
+                    }
+                  }
+                }
+              },
+              "404": {
+                "description": "User not found",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "User not found"
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "No profile found for this identifier"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "description": "Request identifier for debugging"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "post": {
+            "summary": "Persist updated preferences with consent",
+            "description": "Update user preferences and recent context. Requires explicit consent in the request body.",
+            "operationId": "updatePreferences",
+            "tags": ["User Management"],
+            "parameters": [
+              {
+                "name": "id",
+                "in": "path",
+                "required": true,
+                "description": "User identifier (email, code, or ID)",
+                "schema": { "type": "string" },
+                "example": "demo@example.com"
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "preferences": {
+                        "type": "object",
+                        "description": "User preferences to update",
+                        "additionalProperties": true,
+                        "example": {
+                          "tone": "professional",
+                          "travelStyle": "business"
+                        }
+                      },
+                      "recentContext": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "Recent context to remember",
+                        "example": [
+                          "Just booked JFK to LAX flight",
+                          "Prefers morning departures"
+                        ]
+                      },
+                      "consent": {
+                        "type": "boolean",
+                        "description": "Explicit consent to save data",
+                        "example": true
+                      }
+                    },
+                    "required": ["consent"]
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Preferences saved successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "success": {
+                          "type": "boolean",
+                          "description": "Whether the update was successful"
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Preferences saved successfully"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "Timestamp of the update"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "description": "Request identifier for tracking"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "400": {
+                "description": "Bad request - missing consent",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Consent required"
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Explicit consent is required to save preferences"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "description": "Request identifier for debugging"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
         "/api/health": {
           "get": {
             "summary": "Health check endpoint",
@@ -458,6 +682,10 @@ module.exports = (req, res) => {
           "description": "Endpoints for searching and booking flights"
         },
         {
+          "name": "User Management",
+          "description": "Endpoints for user profile management and personalization"
+        },
+        {
           "name": "System",
           "description": "System health and documentation endpoints"
         }
@@ -498,6 +726,29 @@ module.exports = (req, res) => {
               "class": {
                 "type": "string",
                 "description": "Travel class"
+              }
+            }
+          },
+          "UserProfile": {
+            "type": "object",
+            "properties": {
+              "displayName": {
+                "type": "string",
+                "description": "User's display name"
+              },
+              "role": {
+                "type": "string",
+                "description": "User's role or travel style"
+              },
+              "preferences": {
+                "type": "object",
+                "description": "User preferences",
+                "additionalProperties": true
+              },
+              "recentContext": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Recent context for personalization"
               }
             }
           }

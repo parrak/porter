@@ -11,3 +11,4 @@ AMADEUS_CLIENT_ID=your_amadeus_client_id_here
 AMADEUS_CLIENT_SECRET=your_amadeus_client_secret_here
 
 # Note: Keep your .env file secure and never commit it to version control
+

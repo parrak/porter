@@ -96,3 +96,5 @@ Thumbs.db
 
 # User data (if you want to exclude it)
 user-data/
+
+.vercel

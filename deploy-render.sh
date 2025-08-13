@@ -66,3 +66,4 @@ fi
 
 echo ""
 echo "📚 For detailed instructions, see CUSTOM-GPT-SETUP.md"
+

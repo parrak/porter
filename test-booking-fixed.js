@@ -174,3 +174,4 @@ async function testCorrectedBooking() {
 
 // Run the corrected test
 testCorrectedBooking();
+
