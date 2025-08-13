@@ -1,0 +1,64 @@
+name: Update OAuth URLs After Deployment
+
+on:
+  deployment_status:
+    states: [success]
+
+jobs:
+  update-oauth-urls:
+    if: github.event.deployment_status.environment == 'Production'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Get deployment URL
+        id: deployment
+        run: |
+          DEPLOYMENT_URL="${{ github.event.deployment_status.target_url }}"
+          # Extract domain from deployment URL
+          if [[ $DEPLOYMENT_URL == *"vercel.app"* ]]; then
+            DOMAIN=$(echo $DEPLOYMENT_URL | sed 's|https://||' | sed 's|http://||')
+            echo "deployment_url=$DOMAIN" >> $GITHUB_OUTPUT
+            echo "full_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+          else
+            echo "deployment_url=porter-jm0igivgv-rakesh-paridas-projects.vercel.app" >> $GITHUB_OUTPUT
+            echo "full_url=https://porter-jm0igivgv-rakesh-paridas-projects.vercel.app" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Update OAuth URLs
+        run: |
+          echo "🚀 Updating OAuth URLs for deployment: ${{ steps.deployment.outputs.full_url }}"
+          
+          # Update env.example
+          sed -i "s|OAUTH_AUTHORIZATION_URL=.*|OAUTH_AUTHORIZATION_URL=${{ steps.deployment.outputs.full_url }}/api/oauth/authorize|g" env.example
+          sed -i "s|OAUTH_TOKEN_URL=.*|OAUTH_TOKEN_URL=${{ steps.deployment.outputs.full_url }}/api/oauth/token|g" env.example
+          
+          echo "✅ Updated env.example with new OAuth URLs"
+          
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add env.example
+          git commit -m "Update OAuth URLs for deployment ${{ steps.deployment.outputs.deployment_url }}" || echo "No changes to commit"
+          git push origin main || echo "No changes to push"
+          
+      - name: Create deployment summary
+        run: |
+          echo "## 🚀 OAuth URLs Updated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment URL:** ${{ steps.deployment.outputs.full_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Updated URLs:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Authorization: ${{ steps.deployment.outputs.full_url }}/api/oauth/authorize" >> $GITHUB_STEP_SUMMARY
+          echo "- Token: ${{ steps.deployment.outputs.full_url }}/api/oauth/token" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Files Updated:**" >> $GITHUB_STEP_SUMMARY
+          echo "- env.example" >> $GITHUB_STEP_SUMMARY
