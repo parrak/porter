@@ -8,7 +8,7 @@
     "dev": "node web-api.js",
     "build": "echo 'No build step required'",
     "vercel-build": "echo 'No build step required'",
-    "postinstall": "node scripts/update-oauth-urls.js",
+    "postinstall": "echo 'Static OAuth URLs - no dynamic updates needed'",
     "update-oauth": "node scripts/update-oauth-urls.js",
     "update-current": "node scripts/update-current-oauth.js porter-preview.vercel.app",
     "update-env": "node scripts/update-env-vars.js",

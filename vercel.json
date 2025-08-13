@@ -7,7 +7,7 @@
       "use": "@vercel/node"
     }
   ],
-  "buildCommand": "npm run update-oauth",
+  "buildCommand": "echo 'Static OAuth URLs - no dynamic updates needed'",
   "rewrites": [
     {
       "source": "/api/health",
