@@ -36,14 +36,6 @@
   ],
   "routes": [
     {
-      "src": "/health",
-      "dest": "/api/health.js"
-    },
-    {
-      "src": "/openapi.json",
-      "dest": "/api/openapi.js"
-    },
-    {
       "src": "/api/health",
       "dest": "/api/health.js"
     },
@@ -66,6 +58,14 @@
     {
       "src": "/api/public",
       "dest": "/api/public.js"
+    },
+    {
+      "src": "/health",
+      "dest": "/api/health.js"
+    },
+    {
+      "src": "/openapi.json",
+      "dest": "/api/openapi.js"
     },
     {
       "src": "/(.*)",
