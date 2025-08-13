@@ -45,8 +45,8 @@ module.exports = (req, res) => {
             "type": "oauth2",
             "flows": {
               "authorizationCode": {
-                "authorizationUrl: "https://porter-jm0igivgv-rakesh-paridas-projects.vercel.app/api/oauth/authorize"",
-                "tokenUrl": "https://chatgpt.com/aip/{g-YOUR-GPT-ID-HERE}/oauth/token",
+                "authorizationUrl": "https://porter-pxjgnn1nm-rakesh-paridas-projects.vercel.app/api/oauth/authorize",
+                "tokenUrl": "https://porter-pxjgnn1nm-rakesh-paridas-projects.vercel.app/api/oauth/token",
                 "scopes": {
                   "read": "Read user profile and preferences",
                   "write": "Update user preferences and booking history",
