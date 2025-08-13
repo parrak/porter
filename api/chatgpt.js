@@ -1,5 +1,10 @@
 // Flight intent parser using ChatGPT
 async function parseFlightIntentWithChatGPT(message) {
+  const startTime = Date.now();
+  const requestId = generateRequestId();
+  
+  console.log(`[${requestId}] 🚀 Starting ChatGPT intent parsing for message: "${message}"`);
+  
   try {
     // Use ChatGPT to parse the flight intent
     const prompt = `Parse this flight request and return ONLY a JSON object with the following structure:
@@ -21,6 +26,10 @@ Rules:
 - Use today's date if no date specified
 - Return ONLY the JSON, no other text`;
 
+    console.log(`[${requestId}] 📤 Sending request to OpenAI API...`);
+    console.log(`[${requestId}] 📝 Prompt: ${prompt.substring(0, 100)}...`);
+    
+    const openaiStartTime = Date.now();
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -44,91 +53,195 @@ Rules:
       })
     });
 
+    const openaiEndTime = Date.now();
+    const openaiDuration = openaiEndTime - openaiStartTime;
+    
+    console.log(`[${requestId}] ⏱️ OpenAI API response time: ${openaiDuration}ms`);
+    console.log(`[${requestId}] 📊 OpenAI API status: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`[${requestId}] ❌ OpenAI API error: ${response.status} - ${errorText}`);
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
+    console.log(`[${requestId}] ✅ OpenAI API response received successfully`);
+    console.log(`[${requestId}] 📈 OpenAI API usage: ${JSON.stringify(data.usage)}`);
+    
     const content = data.choices[0].message.content.trim();
+    console.log(`[${requestId}] 📄 Raw ChatGPT response: ${content}`);
     
     // Extract JSON from the response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      console.error(`[${requestId}] ❌ No valid JSON found in ChatGPT response`);
       throw new Error('No valid JSON found in response');
     }
     
     const intent = JSON.parse(jsonMatch[0]);
+    console.log(`[${requestId}] 🎯 Parsed intent: ${JSON.stringify(intent)}`);
     
     // Validate required fields
     if (!intent.from || !intent.to) {
+      console.error(`[${requestId}] ❌ Missing required fields in parsed intent: ${JSON.stringify(intent)}`);
       throw new Error('Missing required fields: from, to');
     }
     
+    const totalDuration = Date.now() - startTime;
+    console.log(`[${requestId}] 🎉 ChatGPT intent parsing completed successfully in ${totalDuration}ms`);
+    
+    // Log telemetry data
+    logTelemetry('chatgpt_intent_parsing', {
+      requestId,
+      success: true,
+      duration: totalDuration,
+      openaiDuration,
+      messageLength: message.length,
+      intent,
+      openaiUsage: data.usage
+    });
+    
     return intent;
   } catch (error) {
-    console.error('ChatGPT intent parsing failed:', error);
+    const totalDuration = Date.now() - startTime;
+    console.error(`[${requestId}] ❌ ChatGPT intent parsing failed after ${totalDuration}ms:`, error);
+    
+    // Log error telemetry
+    logTelemetry('chatgpt_intent_parsing_error', {
+      requestId,
+      success: false,
+      duration: totalDuration,
+      error: error.message,
+      messageLength: message.length
+    });
     
     // Fallback to basic parsing if ChatGPT fails
+    console.log(`[${requestId}] 🔄 Falling back to basic intent parser...`);
     return parseFlightIntentFallback(message);
   }
 }
 
 // Fallback intent parser (simplified version of the original)
 function parseFlightIntentFallback(message) {
-  const lowerMessage = message.toLowerCase();
+  const requestId = generateRequestId();
+  console.log(`[${requestId}] 🔄 Using fallback intent parser for message: "${message}"`);
   
-  // Extract airport codes (simple pattern matching)
-  const airportPattern = /(?:from|departing|leaving)\s+([A-Z]{3})/i;
-  const toPattern = /(?:to|arriving|going to)\s+([A-Z]{3})/i;
+  const startTime = Date.now();
   
-  const fromMatch = message.match(airportPattern);
-  const toMatch = message.match(toPattern);
-  
-  let from = fromMatch ? fromMatch[1].toUpperCase() : "JFK";
-  let to = toMatch ? toMatch[1].toUpperCase() : "LAX";
-  
-  // Extract date patterns
-  const datePatterns = [
-    /(?:on|for)\s+(\d{1,2}\/\d{1,2}\/\d{4})/i,
-    /(?:on|for)\s+(\d{4}-\d{2}-\d{2})/i,
-    /(?:on|for)\s+(tomorrow)/i,
-    /(?:on|for)\s+(next week)/i
-  ];
-  
-  let date = new Date().toISOString().split('T')[0]; // Today
-  for (const pattern of datePatterns) {
-    const match = message.match(pattern);
-    if (match) {
-      if (match[1] === "tomorrow") {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        date = tomorrow.toISOString().split('T')[0];
-      } else if (match[1] === "next week") {
-        const nextWeek = new Date();
-        nextWeek.setDate(nextWeek.getDate() + 7);
-        date = nextWeek.toISOString().split('T')[0];
-      } else {
-        date = match[1];
+  try {
+    const lowerMessage = message.toLowerCase();
+    
+    // Extract airport codes (simple pattern matching)
+    const airportPattern = /(?:from|departing|leaving)\s+([A-Z]{3})/i;
+    const toPattern = /(?:to|arriving|going to)\s+([A-Z]{3})/i;
+    
+    const fromMatch = message.match(airportPattern);
+    const toMatch = message.match(toPattern);
+    
+    let from = fromMatch ? fromMatch[1].toUpperCase() : "JFK";
+    let to = toMatch ? toMatch[1].toUpperCase() : "LAX";
+    
+    // Extract date patterns
+    const datePatterns = [
+      /(?:on|for)\s+(\d{1,2}\/\d{1,2}\/\d{4})/i,
+      /(?:on|for)\s+(\d{4}-\d{2}-\d{2})/i,
+      /(?:on|for)\s+(tomorrow)/i,
+      /(?:on|for)\s+(next week)/i
+    ];
+    
+    let date = new Date().toISOString().split('T')[0]; // Today
+    for (const pattern of datePatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        if (match[1] === "tomorrow") {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          date = tomorrow.toISOString().split('T')[0];
+        } else if (match[1] === "next week") {
+          const nextWeek = new Date();
+          nextWeek.setDate(nextWeek.getDate() + 7);
+          date = nextWeek.toISOString().split('T')[0];
+        } else {
+          date = match[1];
+        }
+        break;
       }
-      break;
     }
+    
+    // Extract passenger count
+    const passengerPattern = /(\d+)\s+(?:passenger|person|people)/i;
+    const passengerMatch = message.match(passengerPattern);
+    const passengers = passengerMatch ? parseInt(passengerMatch[1]) : 1;
+    
+    // Extract travel class
+    let travelClass = "economy";
+    if (lowerMessage.includes("business")) travelClass = "business";
+    if (lowerMessage.includes("first")) travelClass = "first";
+    
+    const intent = { from, to, date, passengers, class: travelClass };
+    const duration = Date.now() - startTime;
+    
+    console.log(`[${requestId}] ✅ Fallback parser completed in ${duration}ms: ${JSON.stringify(intent)}`);
+    
+    // Log fallback telemetry
+    logTelemetry('fallback_intent_parsing', {
+      requestId,
+      success: true,
+      duration,
+      method: 'regex_patterns',
+      intent
+    });
+    
+    return intent;
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error(`[${requestId}] ❌ Fallback parser failed after ${duration}ms:`, error);
+    
+    logTelemetry('fallback_intent_parsing_error', {
+      requestId,
+      success: false,
+      duration,
+      error: error.message
+    });
+    
+    // Return default values as last resort
+    return { from: "JFK", to: "LAX", date: new Date().toISOString().split('T')[0], passengers: 1, class: "economy" };
   }
+}
+
+// Utility functions
+function generateRequestId() {
+  return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+function logTelemetry(event, data) {
+  const timestamp = new Date().toISOString();
+  const telemetryData = {
+    timestamp,
+    event,
+    ...data,
+    environment: process.env.NODE_ENV || 'production',
+    deployment: process.env.VERCEL_URL || 'local'
+  };
   
-  // Extract passenger count
-  const passengerPattern = /(\d+)\s+(?:passenger|person|people)/i;
-  const passengerMatch = message.match(passengerPattern);
-  const passengers = passengerMatch ? parseInt(passengerMatch[1]) : 1;
+  console.log(`[TELEMETRY] ${JSON.stringify(telemetryData)}`);
   
-  // Extract travel class
-  let travelClass = "economy";
-  if (lowerMessage.includes("business")) travelClass = "business";
-  if (lowerMessage.includes("first")) travelClass = "first";
-  
-  return { from, to, date, passengers, class: travelClass };
+  // In production, you could send this to a logging service like:
+  // - Vercel Analytics
+  // - LogRocket
+  // - Sentry
+  // - Custom logging endpoint
 }
 
 // ChatGPT API endpoint for Vercel
 module.exports = async (req, res) => {
+  const requestId = generateRequestId();
+  const startTime = Date.now();
+  
+  console.log(`[${requestId}] 🌐 New request received: ${req.method} ${req.url}`);
+  console.log(`[${requestId}] 📋 Request headers: ${JSON.stringify(req.headers)}`);
+  
   // Set CORS headers to allow all origins
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -137,11 +250,13 @@ module.exports = async (req, res) => {
   
   // Handle preflight OPTIONS request
   if (req.method === 'OPTIONS') {
+    console.log(`[${requestId}] ✅ Preflight OPTIONS request handled`);
     res.status(200).end();
     return;
   }
   
   if (req.method !== 'POST') {
+    console.log(`[${requestId}] ❌ Method not allowed: ${req.method}`);
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
@@ -149,8 +264,12 @@ module.exports = async (req, res) => {
     const { message, userId } = req.body;
     
     if (!message) {
+      console.log(`[${requestId}] ❌ Missing message in request body`);
       return res.status(400).json({ error: 'Message is required' });
     }
+
+    console.log(`[${requestId}] 👤 User ID: ${userId || 'anonymous'}`);
+    console.log(`[${requestId}] 💬 Processing message: "${message}"`);
 
     // Parse flight search intent using ChatGPT
     const flightIntent = await parseFlightIntentWithChatGPT(message);
@@ -160,6 +279,7 @@ module.exports = async (req, res) => {
       success: true,
       message: `Found flights for your request: "${message}"`,
       intent: flightIntent,
+      requestId,
       flights: [
         {
           flightNumber: "AA123",
@@ -191,11 +311,37 @@ module.exports = async (req, res) => {
       }
     };
 
+    const totalDuration = Date.now() - startTime;
+    console.log(`[${requestId}] 🎉 Request completed successfully in ${totalDuration}ms`);
+    
+    // Log successful request telemetry
+    logTelemetry('chatgpt_api_request', {
+      requestId,
+      success: true,
+      duration: totalDuration,
+      userId: userId || 'anonymous',
+      messageLength: message.length,
+      intent: flightIntent
+    });
+
     res.status(200).json(mockResponse);
   } catch (error) {
+    const totalDuration = Date.now() - startTime;
+    console.error(`[${requestId}] ❌ Request failed after ${totalDuration}ms:`, error);
+    
+    // Log error telemetry
+    logTelemetry('chatgpt_api_error', {
+      requestId,
+      success: false,
+      duration: totalDuration,
+      error: error.message,
+      userId: req.body?.userId || 'anonymous'
+    });
+    
     res.status(500).json({
       error: 'Internal server error',
-      message: error.message
+      message: error.message,
+      requestId
     });
   }
 };
