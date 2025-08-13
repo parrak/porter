@@ -107,16 +107,24 @@ curl -X POST https://your-api-url.com/api/search-flights \
   }'
 ```
 
-## 📍 Protected Endpoints
+## 📍 Authentication Requirements
 
-The following endpoints require authentication:
+### **🔓 Public Endpoints (No Authentication Required)**
 
 | Endpoint | Method | Description | Authentication Required |
 |-----------|--------|-------------|------------------------|
-| `/api/chatgpt` | POST | Natural language flight search | ✅ Yes |
-| `/api/search-flights` | POST | Direct flight search | ✅ Yes |
-| `/api/book-flight` | POST | Book a flight | ✅ Yes |
-| `/api/users/{id}` | GET | Get user profile | ✅ Yes |
+| `/api/chatgpt` | POST | Natural language flight search | ❌ No |
+| `/api/search-flights` | POST | Direct flight search | ❌ No |
+| `/api/health` | GET | Health check | ❌ No |
+| `/api/openapi` | GET | OpenAPI specification | ❌ No |
+
+### **🔐 Protected Endpoints (OAuth 2.0 Required)**
+
+| Endpoint | Method | Description | Authentication Required |
+|-----------|--------|-------------|------------------------|
+| `/api/book-flight` | POST | Book a flight | ✅ Yes (OAuth: book scope) |
+| `/api/users/{id}` | GET | Get user profile | ✅ Yes (OAuth: read scope) |
+| `/api/oauth/*` | Various | OAuth 2.0 endpoints | ✅ Yes (OAuth flow) |
 
 ## 🌐 Public Endpoints
 

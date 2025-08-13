@@ -64,11 +64,7 @@ module.exports = (req, res) => {
           }
         }
       },
-      "security": [
-        {
-          "oauth": ["read", "write", "book"]
-        }
-      ],
+      "security": [],
       "paths": {
         "/api/chatgpt": {
           "post": {
@@ -76,11 +72,7 @@ module.exports = (req, res) => {
             "description": "Use ChatGPT to parse natural language flight requests and return flight options",
             "operationId": "chatgptFlightSearch",
             "tags": ["Flight Search"],
-            "security": [
-              {
-                "oauth": ["read", "write", "book"]
-              }
-            ],
+            "security": [],
             "requestBody": {
               "required": true,
               "content": {
@@ -275,11 +267,7 @@ module.exports = (req, res) => {
             "operationId": "searchFlights",
             "tags": ["Flight Search"],
             "summary": "Search for available flights",
-            "security": [
-              {
-                "oauth": ["read", "write", "book"]
-              }
-            ],
+            "security": [],
             "description": "Search for flights using specific parameters. Integrates with Amadeus API for real-time flight data.",
             "requestBody": {
               "required": true,

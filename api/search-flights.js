@@ -24,41 +24,8 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // API Key Authentication
-  const apiKey = req.headers['x-api-key'] || req.headers['X-API-Key'];
-  if (!apiKey) {
-    console.log(`[${requestId}] ❌ Missing API key`);
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'API key is required for this endpoint',
-      code: 'MISSING_API_KEY',
-      requestId
-    });
-  }
-
-  // Validate API key
-  const validApiKey = process.env.API_KEY;
-  if (!validApiKey) {
-    console.log(`[${requestId}] ⚠️ No API_KEY environment variable configured`);
-    return res.status(500).json({
-      error: 'Server Configuration Error',
-      message: 'API authentication not properly configured',
-      code: 'AUTH_NOT_CONFIGURED',
-      requestId
-    });
-  }
-
-  if (apiKey !== validApiKey) {
-    console.log(`[${requestId}] ❌ Invalid API key`);
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Invalid API key',
-      code: 'INVALID_API_KEY',
-      requestId
-    });
-  }
-
-  console.log(`[${requestId}] ✅ API key validated successfully`);
+  // No authentication required for flight search
+  console.log(`[${requestId}] 🔓 Flight search request - no authentication required`);
 
   try {
     const { from, to, date, passengers = 1, travelClass = 'ECONOMY', userId } = req.body;
