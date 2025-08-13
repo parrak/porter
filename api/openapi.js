@@ -22,7 +22,7 @@ module.exports = (req, res) => {
       },
       "servers": [
         {
-          "url": "https://porter-gcdnzaqo6-rakesh-paridas-projects.vercel.app"
+          "url": "https://porter-cd2kjhtay-rakesh-paridas-projects.vercel.app"
         }
       ],
       "paths": {

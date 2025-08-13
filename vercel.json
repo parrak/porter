@@ -32,6 +32,10 @@
       "dest": "/api/search-flights.js"
     },
     {
+      "src": "/api/test",
+      "dest": "/api/test.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "/api/index.js"
     }
