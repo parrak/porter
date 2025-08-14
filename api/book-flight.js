@@ -524,7 +524,9 @@ function enhanceFlightOfferForAmadeus(flightOffer, requestId) {
   if (flightOffer.type === 'flight-offer' && 
       flightOffer.validatingAirlineCodes && 
       flightOffer.itineraries && 
-      flightOffer.travelerPricings) {
+      flightOffer.travelerPricings &&
+      flightOffer.travelerPricings[0]?.fareDetailsBySegment &&
+      flightOffer.travelerPricings[0]?.travelerType) {
     console.log(`[${requestId}] ✅ Flight offer is already complete, using as-is`);
     return flightOffer;
   }
@@ -552,6 +554,7 @@ function enhanceFlightOfferForAmadeus(flightOffer, requestId) {
       {
         segments: [
           {
+            id: '1', // Required by Amadeus
             departure: {
               iataCode: flightOffer.origin || flightOffer.from,
               terminal: '1',
@@ -575,10 +578,24 @@ function enhanceFlightOfferForAmadeus(flightOffer, requestId) {
       {
         travelerId: '1',
         fareOption: 'STANDARD',
+        travelerType: 'ADULT', // Required by Amadeus
         includedCheckedBags: {
           weight: 23,
           weightUnit: 'KG'
         },
+        fareDetailsBySegment: [ // Required by Amadeus
+          {
+            segmentId: '1',
+            cabin: flightOffer.travelClass || flightOffer.class || 'ECONOMY',
+            fareBasis: 'KLRB3K',
+            brandedFare: 'BASIC',
+            classOfService: 'K',
+            includedCheckedBags: {
+              weight: 23,
+              weightUnit: 'KG'
+            }
+          }
+        ],
         price: flightOffer.price || {
           total: '299.99',
           currency: 'USD'
