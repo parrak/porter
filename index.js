@@ -31,8 +31,9 @@ module.exports = async (req, res) => {
       console.log(`🔌 API request received: ${method} ${url} -> ${apiPath}`);
       
       try {
-        // Extract the base handler name (first path segment)
-        const pathSegments = apiPath.split('/').filter(segment => segment.length > 0);
+        // Extract the base handler name (first path segment) - remove query parameters first
+        const apiPathWithoutQuery = apiPath.split('?')[0]; // Remove query parameters
+        const pathSegments = apiPathWithoutQuery.split('/').filter(segment => segment.length > 0);
         const baseHandler = pathSegments[0]; // e.g., 'users' from 'users/a@b.com'
         
         console.log(`🔍 Path segments: [${pathSegments.join(', ')}]`);
