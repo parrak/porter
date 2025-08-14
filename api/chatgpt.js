@@ -1486,12 +1486,47 @@ module.exports = async (req, res) => {
         intent: flightIntent,
         requestId,
         flights: searchData.flights || [],
-        // Include complete Amadeus flight offers for booking
+        // Include essential flight offer data for booking (optimized to prevent large responses)
         // Frontend should use flightOffers[flightIndex] when sending to book-flight endpoint
-        flightOffers: searchData.flightOffers || [],
+        flightOffers: searchData.flightOffers ? searchData.flightOffers.map(offer => ({
+          id: offer.id,
+          type: offer.type,
+          source: offer.source,
+          origin: offer.origin || offer.from,
+          destination: offer.destination || offer.to,
+          departureDate: offer.departureDate || offer.date,
+          returnDate: offer.returnDate,
+          price: offer.price,
+          validatingAirlineCodes: offer.validatingAirlineCodes,
+          numberOfBookableSeats: offer.numberOfBookableSeats,
+          // Include minimal itinerary data
+          itineraries: offer.itineraries ? offer.itineraries.map(itinerary => ({
+            duration: itinerary.duration,
+            segments: itinerary.segments ? itinerary.segments.map(segment => ({
+              id: segment.id,
+              departure: segment.departure,
+              arrival: segment.arrival,
+              carrierCode: segment.carrierCode,
+              number: segment.number
+            })) : []
+          })) : [],
+          // Include minimal traveler pricing data
+          travelerPricings: offer.travelerPricings ? offer.travelerPricings.map(pricing => ({
+            travelerId: pricing.travelerId,
+            fareOption: pricing.fareOption,
+            travelerType: pricing.travelerType,
+            price: pricing.price,
+            // Include minimal fare details
+            fareDetailsBySegment: pricing.fareDetailsBySegment ? pricing.fareDetailsBySegment.map(detail => ({
+              segmentId: detail.segmentId,
+              cabin: detail.cabin,
+              fareBasis: detail.fareBasis
+            })) : []
+          })) : []
+        })) : [],
         searchParams: searchData.searchParams || searchParams,
         dataSource: searchData.dataSource || 'unknown',
-        searchDuration: searchDuration,
+        searchDuration,
         userProfile: userProfile ? {
           displayName: userProfile.displayName,
           role: userProfile.role,
@@ -2549,12 +2584,47 @@ module.exports = async (req, res) => {
         intent: flightIntent,
         requestId,
         flights: searchData.flights || [],
-        // Include complete Amadeus flight offers for booking
+        // Include essential flight offer data for booking (optimized to prevent large responses)
         // Frontend should use flightOffers[flightIndex] when sending to book-flight endpoint
-        flightOffers: searchData.flightOffers || [],
+        flightOffers: searchData.flightOffers ? searchData.flightOffers.map(offer => ({
+          id: offer.id,
+          type: offer.type,
+          source: offer.source,
+          origin: offer.origin || offer.from,
+          destination: offer.destination || offer.to,
+          departureDate: offer.departureDate || offer.date,
+          returnDate: offer.returnDate,
+          price: offer.price,
+          validatingAirlineCodes: offer.validatingAirlineCodes,
+          numberOfBookableSeats: offer.numberOfBookableSeats,
+          // Include minimal itinerary data
+          itineraries: offer.itineraries ? offer.itineraries.map(itinerary => ({
+            duration: itinerary.duration,
+            segments: itinerary.segments ? itinerary.segments.map(segment => ({
+              id: segment.id,
+              departure: segment.departure,
+              arrival: segment.arrival,
+              carrierCode: segment.carrierCode,
+              number: segment.number
+            })) : []
+          })) : [],
+          // Include minimal traveler pricing data
+          travelerPricings: offer.travelerPricings ? offer.travelerPricings.map(pricing => ({
+            travelerId: pricing.travelerId,
+            fareOption: pricing.fareOption,
+            travelerType: pricing.travelerType,
+            price: pricing.price,
+            // Include minimal fare details
+            fareDetailsBySegment: pricing.fareDetailsBySegment ? pricing.fareDetailsBySegment.map(detail => ({
+              segmentId: detail.segmentId,
+              cabin: detail.cabin,
+              fareBasis: detail.fareBasis
+            })) : []
+          })) : []
+        })) : [],
         searchParams: searchData.searchParams || searchParams,
         dataSource: searchData.dataSource || 'unknown',
-        searchDuration: searchDuration,
+        searchDuration,
         userProfile: userProfile ? {
           displayName: userProfile.displayName,
           role: userProfile.role,
