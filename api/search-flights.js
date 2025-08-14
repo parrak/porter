@@ -34,26 +34,49 @@ module.exports = async (req, res) => {
     // Load user profile and preferences if user_id is provided
     if (user_id) {
       try {
-        // Get user profile
-        const profileResult = await executeQuery(`
-          SELECT * FROM user_profile_summary WHERE id = $1
-        `, [user_id]);
+        let actualUserId = user_id;
         
-        if (profileResult.rows.length > 0) {
-          userProfile = profileResult.rows[0];
-          
-          // Get user preferences
-          const preferencesResult = await executeQuery(`
-            SELECT category, preferences FROM user_preferences WHERE user_id = $1
+        // If user_id is an email address (string), look up the actual user ID first
+        if (typeof user_id === 'string' && user_id.includes('@')) {
+          const userResult = await executeQuery(`
+            SELECT id FROM users WHERE email = $1
           `, [user_id]);
           
-          userPreferences = preferencesResult.rows.reduce((acc, row) => {
-            acc[row.category] = row.preferences;
-            return acc;
-          }, {});
-          
-          console.log(`[${requestId}] ✅ User profile loaded: ${userProfile.display_name || userProfile.email}`);
+          if (userResult.rows.length > 0) {
+            actualUserId = userResult.rows[0].id;
+            console.log(`[${requestId}] 🔍 Found user ID ${actualUserId} for email ${user_id}`);
+          } else {
+            console.log(`[${requestId}] ⚠️ No user found for email ${user_id}, continuing without profile`);
+            actualUserId = null;
+          }
         }
+        
+        // Only proceed with profile loading if we have a valid user ID
+        if (actualUserId && !isNaN(actualUserId)) {
+          // Get user profile
+          const profileResult = await executeQuery(`
+            SELECT * FROM user_profile_summary WHERE id = $1
+          `, [actualUserId]);
+          
+          if (profileResult.rows.length > 0) {
+            userProfile = profileResult.rows[0];
+            
+            // Get user preferences
+            const preferencesResult = await executeQuery(`
+              SELECT category, preferences FROM user_preferences WHERE user_id = $1
+            `, [actualUserId]);
+            
+            userPreferences = preferencesResult.rows.reduce((acc, row) => {
+              acc[row.category] = row.preferences;
+              return acc;
+            }, {});
+            
+            console.log(`[${requestId}] ✅ User profile loaded: ${userProfile.display_name || userProfile.email}`);
+          }
+        }
+        
+        // Update user_id to use the actual ID for database operations
+        user_id = actualUserId;
       } catch (error) {
         console.log(`[${requestId}] ⚠️ Could not load user profile: ${error.message}`);
         // Continue without profile data
