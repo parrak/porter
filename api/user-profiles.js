@@ -29,27 +29,28 @@ async function createOrUpdateProfile(req, res) {
       language
     } = profile_data;
 
-    // Check if user exists
+    // Check if user exists by email
     const existingUser = await executeQuery(
-      'SELECT id FROM users WHERE id = $1',
-      [user_id]
+      'SELECT id FROM users WHERE email = $1',
+      [email]
     );
 
     if (existingUser.rows.length === 0) {
-      // Create new user
+      // Create new user - let the database generate the UUID
       const newUser = await executeQuery(`
-        INSERT INTO users (id, email, display_name, first_name, last_name, phone, date_of_birth, profile_picture_url, timezone, language)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        INSERT INTO users (email, display_name, first_name, last_name, phone, date_of_birth, profile_picture_url, timezone, language)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *
-      `, [user_id, email, display_name, first_name, last_name, phone, date_of_birth, profile_picture_url, timezone, language]);
+      `, [email, display_name, first_name, last_name, phone, date_of_birth, profile_picture_url, timezone, language]);
 
-      console.log(`[${requestId}] ✅ New user created: ${user_id}`);
+      const newUserId = newUser.rows[0].id;
+      console.log(`[${requestId}] ✅ New user created: ${newUserId}`);
       
       // Create default communication preferences
       await executeQuery(`
         INSERT INTO user_communication_preferences (user_id)
         VALUES ($1)
-      `, [user_id]);
+      `, [newUserId]);
 
       return res.status(201).json({
         success: true,
@@ -100,9 +101,9 @@ async function getUserProfile(req, res) {
   console.log(`[${requestId}] 📋 Getting user profile for user: ${user_id}`);
   
   try {
-    // Get user profile with summary data
+    // Get user profile directly from users table
     const profileResult = await executeQuery(`
-      SELECT * FROM user_profile_summary WHERE id = $1
+      SELECT * FROM users WHERE id = $1
     `, [user_id]);
 
     if (profileResult.rows.length === 0) {
