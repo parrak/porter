@@ -929,10 +929,10 @@ module.exports = async (req, res) => {
               paymentInfo: bookingInfo.paymentInfo,
               userId: userId || 'anonymous',
               searchParams: {
-                from: flightIntent.from,
-                to: flightIntent.to,
-                date: flightIntent.date,
-                passengers: flightIntent.passengers,
+                origin: flightIntent.from,
+                destination: flightIntent.to,
+                departureDate: flightIntent.date,
+                adults: flightIntent.passengers,
                 travelClass: flightIntent.class.toUpperCase()
               },
               originalIntent: flightIntent
@@ -1184,12 +1184,12 @@ module.exports = async (req, res) => {
       
       // Prepare search parameters
       const searchParams = {
-        from: flightIntent.from,
-        to: flightIntent.to,
-        date: flightIntent.date,
-        passengers: flightIntent.passengers,
+        origin: flightIntent.from,
+        destination: flightIntent.to,
+        departureDate: flightIntent.date,
+        adults: flightIntent.passengers,
         travelClass: flightIntent.class.toUpperCase(),
-        userId: userId || 'anonymous'
+        user_id: userId || 'anonymous'
       };
       
       console.log(`[${requestId}] 📤 Calling search-flights with params:`, searchParams);
@@ -1517,10 +1517,10 @@ module.exports = async (req, res) => {
             }
           ],
           searchParams: {
-            from: flightIntent.from,
-            to: flightIntent.to,
-            date: flightIntent.date,
-            passengers: flightIntent.passengers,
+            origin: flightIntent.from,
+            destination: flightIntent.to,
+            departureDate: flightIntent.date,
+            adults: flightIntent.passengers,
             travelClass: flightIntent.class.toUpperCase()
           },
           dataSource: 'fallback_mock_data',
