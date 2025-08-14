@@ -28,28 +28,37 @@ module.exports = async (req, res) => {
     if (url.startsWith('/api/')) {
       const apiPath = url.substring(4); // Remove '/api/' prefix
       
+      console.log(`🔌 API request received: ${method} ${url} -> ${apiPath}`);
+      
       try {
         // Dynamic import of API handlers
         const handlerPath = path.join(__dirname, 'api', `${apiPath}.js`);
         
+        console.log(`📁 Looking for handler at: ${handlerPath}`);
+        
         if (fs.existsSync(handlerPath)) {
+          console.log(`✅ Handler found, loading...`);
           const handler = require(handlerPath);
           
           // Check if it's a function or has a default export
           if (typeof handler === 'function') {
+            console.log(`🚀 Executing handler function for ${apiPath}`);
             return await handler(req, res);
           } else if (handler.default && typeof handler.default === 'function') {
+            console.log(`🚀 Executing default handler function for ${apiPath}`);
             return await handler.default(req, res);
           } else {
+            console.log(`❌ Invalid handler type for ${apiPath}`);
             res.status(500).send('Invalid API handler');
             return;
           }
         } else {
+          console.log(`❌ Handler not found at: ${handlerPath}`);
           res.status(404).send(`API endpoint not found: ${apiPath}`);
           return;
         }
       } catch (error) {
-        console.error(`Error handling API request to ${apiPath}:`, error);
+        console.error(`❌ Error handling API request to ${apiPath}:`, error);
         res.status(500).send('Internal Server Error');
         return;
       }
