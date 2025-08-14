@@ -1,5 +1,5 @@
 // Passenger Details Management API
-const { generateRequestId, logTelemetry } = require('../utils/telemetry');
+const { generateRequestId, logTelemetry } = require('../utils/common');
 const { executeQuery } = require('../database/connection');
 
 module.exports = async (req, res) => {

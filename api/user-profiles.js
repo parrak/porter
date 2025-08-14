@@ -1,5 +1,5 @@
 const { executeQuery, executeTransaction } = require('../database/connection');
-const { generateRequestId } = require('../utils/telemetry');
+const { generateRequestId } = require('../utils/common');
 
 // Create or update user profile
 async function createOrUpdateProfile(req, res) {
