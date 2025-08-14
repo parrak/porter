@@ -2,15 +2,26 @@
 const Amadeus = require('amadeus');
 const { convertFlightOffersPrices, convertDestinationPrices } = require('./utils/currency-converter');
 
-// Initialize Amadeus client
-const amadeus = new Amadeus({
-    clientId: process.env.AMADEUS_CLIENT_ID,
-    clientSecret: process.env.AMADEUS_CLIENT_SECRET
-});
+// Initialize Amadeus client only if credentials are available
+let amadeus = null;
+if (process.env.AMADEUS_CLIENT_ID && process.env.AMADEUS_CLIENT_SECRET) {
+    amadeus = new Amadeus({
+        clientId: process.env.AMADEUS_CLIENT_ID,
+        clientSecret: process.env.AMADEUS_CLIENT_SECRET
+    });
+    console.log('✅ Amadeus client initialized with credentials');
+} else {
+    console.log('⚠️ Amadeus client not initialized - missing credentials');
+}
 
 // Flight search function using Amadeus API
 async function searchFlights(searchParams) {
     try {
+        // Check if Amadeus client is available
+        if (!amadeus) {
+            throw new Error('Amadeus client not initialized - missing API credentials');
+        }
+        
         // Extract parameters from the searchParams object
         const {
             originLocationCode: origin,

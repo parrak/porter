@@ -1,5 +1,4 @@
 // Flight intent parser using ChatGPT
-const { generateRequestId, logTelemetry } = require('../utils/telemetry');
 const { executeQuery } = require('../database/connection');
 const { searchFlights } = require('../flight-search');
 const { storeFlightOffersInContext } = require('./get-flight-offers');

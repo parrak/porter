@@ -1,5 +1,26 @@
 // Flight Booking API endpoint for Vercel - integrates with Amadeus for reservations
 // Export the main handler and the Amadeus booking function for testing
+
+// Utility functions
+function generateRequestId() {
+  return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+function logTelemetry(event, data) {
+  const timestamp = new Date().toISOString();
+  const telemetryData = {
+    timestamp,
+    event,
+    ...data,
+    environment: process.env.NODE_ENV || 'production',
+    deployment: process.env.VERCEL_URL || 'local'
+  };
+  
+  console.log(`[TELEMETRY] ${JSON.stringify(telemetryData)}`);
+  
+  // In production, you could send this to a logging service
+}
+
 const mainHandler = async (req, res) => {
   const requestId = generateRequestId();
   const startTime = Date.now();
@@ -622,23 +643,3 @@ function enhanceFlightOfferForAmadeus(flightOffer, requestId) {
 }
 
 // Helper function to save passenger details to the database
-
-// Utility functions
-function generateRequestId() {
-  return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
-
-function logTelemetry(event, data) {
-  const timestamp = new Date().toISOString();
-  const telemetryData = {
-    timestamp,
-    event,
-    ...data,
-    environment: process.env.NODE_ENV || 'production',
-    deployment: process.env.VERCEL_URL || 'local'
-  };
-  
-  console.log(`[TELEMETRY] ${JSON.stringify(telemetryData)}`);
-  
-  // In production, you could send this to a logging service
-}
