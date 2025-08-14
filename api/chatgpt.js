@@ -1,4 +1,9 @@
 // Flight intent parser using ChatGPT
+const { generateRequestId, logTelemetry } = require('../utils/telemetry');
+const { executeQuery } = require('../database/connection');
+const { searchFlights } = require('../flight-search');
+const { storeFlightOffersInContext } = require('./get-flight-offers');
+
 async function parseFlightIntentWithChatGPT(message) {
   const startTime = Date.now();
   const requestId = generateRequestId();
@@ -1242,6 +1247,83 @@ module.exports = async (req, res) => {
             hasUserProfile: !!response.userProfile
           });
           
+          // Store full flight offers in context for booking
+          if (response.bookingContextId && searchData.flightOffers) {
+            try {
+              storeFlightOffersInContext(response.bookingContextId, searchData.flightOffers);
+              console.log(`[${requestId}] 💾 Stored ${searchData.flightOffers.length} full flight offers in context: ${response.bookingContextId}`);
+            } catch (contextError) {
+              console.error(`[${requestId}] ⚠️ Failed to store flight offers in context:`, contextError);
+              // Don't fail the request, just log the warning
+            }
+          }
+          
+          // If user profile doesn't exist, create one with the search context
+          if (!userProfile && searchData.flights && searchData.flights.length > 0) {
+            console.log(`[${requestId}] 🆕 Creating new user profile for: ${userId}`);
+            
+            try {
+              const createProfileResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/users/${encodeURIComponent(userId)}`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-Request-ID': requestId,
+                  'X-Source': 'chatgpt-endpoint'
+                },
+                body: JSON.stringify({
+                  displayName: userId.includes('@') ? userId.split('@')[0] : userId,
+                  role: 'Traveler',
+                  preferences: {
+                    tone: 'friendly',
+                    format: 'detailed',
+                    travelStyle: 'flexible'
+                  },
+                  recentContext: [
+                    `First flight search: ${flightIntent.origin} → ${flightIntent.destination}`,
+                    `Searched for ${flightIntent.passengers} passenger(s)`,
+                    `Preferred class: ${flightIntent.class}`,
+                    `Found ${searchData.flights.length} flights`
+                  ],
+                  consent: true
+                })
+              });
+              
+              if (createProfileResponse.ok) {
+                const newProfile = await createProfileResponse.json();
+                console.log(`[${requestId}] ✅ New user profile created successfully`);
+                
+                // Update response with new profile
+                response.userProfile = {
+                  displayName: newProfile.displayName || userId,
+                  role: newProfile.role || 'Traveler',
+                  preferences: newProfile.preferences || {},
+                  recentContext: newProfile.recentContext || [],
+                  isNewProfile: true
+                };
+                
+                logTelemetry('chatgpt_user_profile_created', {
+                  requestId,
+                  success: true,
+                  userId,
+                  profileData: response.userProfile
+                });
+                
+              } else {
+                console.log(`[${requestId}] ⚠️ Failed to create user profile: ${createProfileResponse.status}`);
+              }
+              
+            } catch (createError) {
+              console.error(`[${requestId}] ❌ Profile creation error:`, createError);
+              
+              logTelemetry('chatgpt_user_profile_creation_error', {
+                requestId,
+                success: false,
+                error: createError.message,
+                userId
+              });
+            }
+          }
+          
           res.status(200).json(response);
           return;
           
@@ -1486,8 +1568,8 @@ module.exports = async (req, res) => {
         intent: flightIntent,
         requestId,
         flights: searchData.flights || [],
-        // Include essential flight offer data for booking (optimized to prevent large responses)
-        // Frontend should use flightOffers[flightIndex] when sending to book-flight endpoint
+        // Store full flight offers in context for booking, return only essential data in response
+        // Frontend should use the bookingContextId to retrieve full offers when needed
         flightOffers: searchData.flightOffers ? searchData.flightOffers.map(offer => ({
           id: offer.id,
           type: offer.type,
@@ -1524,6 +1606,8 @@ module.exports = async (req, res) => {
             })) : []
           })) : []
         })) : [],
+        // Context ID for retrieving full flight offers when booking
+        bookingContextId: searchData.flightOffers ? `ctx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : null,
         searchParams: searchData.searchParams || searchParams,
         dataSource: searchData.dataSource || 'unknown',
         searchDuration,
@@ -1535,6 +1619,17 @@ module.exports = async (req, res) => {
         } : null,
         firstTurnMessage: "When I check prices with our travel API, you'll see a one-time confirmation popup. This ensures your data is sent securely — you can approve and continue without repeating steps."
       };
+      
+      // Store full flight offers in context for booking
+      if (response.bookingContextId && searchData.flightOffers) {
+        try {
+          storeFlightOffersInContext(response.bookingContextId, searchData.flightOffers);
+          console.log(`[${requestId}] 💾 Stored ${searchData.flightOffers.length} full flight offers in context: ${response.bookingContextId}`);
+        } catch (contextError) {
+          console.error(`[${requestId}] ⚠️ Failed to store flight offers in context:`, contextError);
+          // Don't fail the request, just log the warning
+        }
+      }
       
       // If user profile doesn't exist, create one with the search context
       if (!userProfile && searchData.flights && searchData.flights.length > 0) {
@@ -2340,6 +2435,83 @@ module.exports = async (req, res) => {
             hasUserProfile: !!response.userProfile
           });
           
+          // Store full flight offers in context for booking
+          if (response.bookingContextId && searchData.flightOffers) {
+            try {
+              storeFlightOffersInContext(response.bookingContextId, searchData.flightOffers);
+              console.log(`[${requestId}] 💾 Stored ${searchData.flightOffers.length} full flight offers in context: ${response.bookingContextId}`);
+            } catch (contextError) {
+              console.error(`[${requestId}] ⚠️ Failed to store flight offers in context:`, contextError);
+              // Don't fail the request, just log the warning
+            }
+          }
+          
+          // If user profile doesn't exist, create one with the search context
+          if (!userProfile && searchData.flights && searchData.flights.length > 0) {
+            console.log(`[${requestId}] 🆕 Creating new user profile for: ${userId}`);
+            
+            try {
+              const createProfileResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/users/${encodeURIComponent(userId)}`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-Request-ID': requestId,
+                  'X-Source': 'chatgpt-endpoint'
+                },
+                body: JSON.stringify({
+                  displayName: userId.includes('@') ? userId.split('@')[0] : userId,
+                  role: 'Traveler',
+                  preferences: {
+                    tone: 'friendly',
+                    format: 'detailed',
+                    travelStyle: 'flexible'
+                  },
+                  recentContext: [
+                    `First flight search: ${flightIntent.origin} → ${flightIntent.destination}`,
+                    `Searched for ${flightIntent.passengers} passenger(s)`,
+                    `Preferred class: ${flightIntent.class}`,
+                    `Found ${searchData.flights.length} flights`
+                  ],
+                  consent: true
+                })
+              });
+              
+              if (createProfileResponse.ok) {
+                const newProfile = await createProfileResponse.json();
+                console.log(`[${requestId}] ✅ New user profile created successfully`);
+                
+                // Update response with new profile
+                response.userProfile = {
+                  displayName: newProfile.displayName || userId,
+                  role: newProfile.role || 'Traveler',
+                  preferences: newProfile.preferences || {},
+                  recentContext: newProfile.recentContext || [],
+                  isNewProfile: true
+                };
+                
+                logTelemetry('chatgpt_user_profile_created', {
+                  requestId,
+                  success: true,
+                  userId,
+                  profileData: response.userProfile
+                });
+                
+              } else {
+                console.log(`[${requestId}] ⚠️ Failed to create user profile: ${createProfileResponse.status}`);
+              }
+              
+            } catch (createError) {
+              console.error(`[${requestId}] ❌ Profile creation error:`, createError);
+              
+              logTelemetry('chatgpt_user_profile_creation_error', {
+                requestId,
+                success: false,
+                error: createError.message,
+                userId
+              });
+            }
+          }
+          
           res.status(200).json(response);
           return;
           
@@ -2584,8 +2756,8 @@ module.exports = async (req, res) => {
         intent: flightIntent,
         requestId,
         flights: searchData.flights || [],
-        // Include essential flight offer data for booking (optimized to prevent large responses)
-        // Frontend should use flightOffers[flightIndex] when sending to book-flight endpoint
+        // Store full flight offers in context for booking, return only essential data in response
+        // Frontend should use the bookingContextId to retrieve full offers when needed
         flightOffers: searchData.flightOffers ? searchData.flightOffers.map(offer => ({
           id: offer.id,
           type: offer.type,
@@ -2622,6 +2794,8 @@ module.exports = async (req, res) => {
             })) : []
           })) : []
         })) : [],
+        // Context ID for retrieving full flight offers when booking
+        bookingContextId: searchData.flightOffers ? `ctx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : null,
         searchParams: searchData.searchParams || searchParams,
         dataSource: searchData.dataSource || 'unknown',
         searchDuration,
@@ -2633,6 +2807,17 @@ module.exports = async (req, res) => {
         } : null,
         firstTurnMessage: "When I check prices with our travel API, you'll see a one-time confirmation popup. This ensures your data is sent securely — you can approve and continue without repeating steps."
       };
+      
+      // Store full flight offers in context for booking
+      if (response.bookingContextId && searchData.flightOffers) {
+        try {
+          storeFlightOffersInContext(response.bookingContextId, searchData.flightOffers);
+          console.log(`[${requestId}] 💾 Stored ${searchData.flightOffers.length} full flight offers in context: ${response.bookingContextId}`);
+        } catch (contextError) {
+          console.error(`[${requestId}] ⚠️ Failed to store flight offers in context:`, contextError);
+          // Don't fail the request, just log the warning
+        }
+      }
       
       // If user profile doesn't exist, create one with the search context
       if (!userProfile && searchData.flights && searchData.flights.length > 0) {
