@@ -592,6 +592,7 @@ module.exports = async (req, res) => {
               preferences: userProfile.preferences,
               recentContext: userProfile.recentContext
             } : null,
+            firstTurnMessage: "When I check prices with our travel API, you'll see a one-time confirmation popup. This ensures your data is sent securely — you can approve and continue without repeating steps.",
             nextSteps: [
               'Check your email for booking confirmation',
               'Save your booking reference for future reference',
@@ -665,6 +666,7 @@ module.exports = async (req, res) => {
           requestId,
           originalIntent: flightIntent,
           missingInfo: bookingInfo.missingFields,
+          firstTurnMessage: "When I check prices with our travel API, you'll see a one-time confirmation popup. This ensures your data is sent securely — you can approve and continue without repeating steps.",
           requiredInfo: {
             passengers: {
               description: "Passenger details for each traveler",
@@ -853,7 +855,8 @@ module.exports = async (req, res) => {
           role: userProfile.role,
           preferences: userProfile.preferences,
           recentContext: userProfile.recentContext
-        } : null
+        } : null,
+        firstTurnMessage: "When I check prices with our travel API, you'll see a one-time confirmation popup. This ensures your data is sent securely — you can approve and continue without repeating steps."
       };
       
       // If user profile doesn't exist, create one with the search context
