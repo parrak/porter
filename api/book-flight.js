@@ -1,5 +1,6 @@
 // Flight Booking API endpoint for Vercel - integrates with Amadeus for reservations
-module.exports = async (req, res) => {
+// Export the main handler and the Amadeus booking function for testing
+const mainHandler = async (req, res) => {
   const requestId = generateRequestId();
   const startTime = Date.now();
   
@@ -316,7 +317,10 @@ module.exports = async (req, res) => {
   }
 };
 
-// Export the Amadeus booking function for testing purposes
+// Export the main handler
+module.exports = mainHandler;
+
+// Export the helper functions for testing purposes
 module.exports.bookFlightWithAmadeus = bookFlightWithAmadeus;
 module.exports.enhanceFlightOfferForAmadeus = enhanceFlightOfferForAmadeus;
 
