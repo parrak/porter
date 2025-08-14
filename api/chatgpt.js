@@ -32,53 +32,87 @@ Output: {"from":"JFK","to":"LAX","date":"2025-09-20","passengers":1,"class":"eco
     console.log(`[${requestId}] 📤 Sending request to OpenAI API...`);
     console.log(`[${requestId}] 📝 Prompt: ${prompt.substring(0, 100)}...`);
     
-    const openaiStartTime = Date.now();
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-5',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a flight intent parser. You must return ONLY valid JSON. No explanations, no markdown, no additional text.'
+    // Try multiple models with fallback
+    const models = [
+      { name: 'gpt-5', maxTokens: 150 },
+      { name: 'gpt-4o', maxTokens: 150 },
+      { name: 'gpt-4-turbo', maxTokens: 150 }
+    ];
+    
+    let content = '';
+    let successfulModel = null;
+    let openaiDuration = 0;
+    let openaiUsage = null;
+    
+    for (const model of models) {
+      try {
+        console.log(`[${requestId}] 🔄 Trying model: ${model.name}`);
+        
+        const openaiStartTime = Date.now();
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
           },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_completion_tokens: 150
-      })
-    });
+          body: JSON.stringify({
+            model: model.name,
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a flight intent parser. You must return ONLY valid JSON. No explanations, no markdown, no additional text.'
+              },
+              {
+                role: 'user',
+                content: prompt
+              }
+            ],
+            max_completion_tokens: model.maxTokens
+          })
+        });
 
-    const openaiEndTime = Date.now();
-    const openaiDuration = openaiEndTime - openaiStartTime;
-    
-    console.log(`[${requestId}] ⏱️ OpenAI API response time: ${openaiDuration}ms`);
-    console.log(`[${requestId}] 📊 OpenAI API status: ${response.status} ${response.statusText}`);
+        const openaiEndTime = Date.now();
+        openaiDuration = openaiEndTime - openaiStartTime;
+        
+        console.log(`[${requestId}] ⏱️ OpenAI API response time: ${openaiDuration}ms`);
+        console.log(`[${requestId}] 📊 OpenAI API status: ${response.status} ${response.statusText}`);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[${requestId}] ❌ OpenAI API error: ${response.status} - ${errorText}`);
-      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.log(`[${requestId}] ⚠️ Model ${model.name} failed: ${response.status} - ${errorText}`);
+          continue; // Try next model
+        }
+
+        const data = await response.json();
+        console.log(`[${requestId}] ✅ OpenAI API response received successfully from ${model.name}`);
+        console.log(`[${requestId}] 📈 OpenAI API usage: ${JSON.stringify(data.usage)}`);
+        
+        content = data.choices[0].message.content.trim();
+        console.log(`[${requestId}] 📄 Raw ChatGPT response from ${model.name}: ${content}`);
+        console.log(`[${requestId}] 📏 Response length: ${content.length} characters`);
+        
+        // Check if response is empty - this is the main issue
+        if (!content || content.length === 0) {
+          console.log(`[${requestId}] ⚠️ Model ${model.name} returned empty response, trying next model...`);
+          continue; // Try next model
+        }
+        
+        // If we get here, we have a successful response
+        successfulModel = model.name;
+        openaiUsage = data.usage;
+        console.log(`[${requestId}] 🎉 Successfully got response from ${model.name}`);
+        break; // Exit the loop
+        
+      } catch (error) {
+        console.log(`[${requestId}] ⚠️ Model ${model.name} failed with error: ${error.message}`);
+        continue; // Try next model
+      }
     }
-
-    const data = await response.json();
-    console.log(`[${requestId}] ✅ OpenAI API response received successfully`);
-    console.log(`[${requestId}] 📈 OpenAI API usage: ${JSON.stringify(data.usage)}`);
     
-    const content = data.choices[0].message.content.trim();
-    console.log(`[${requestId}] 📄 Raw ChatGPT response: ${content}`);
-    console.log(`[${requestId}] 📏 Response length: ${content.length} characters`);
-    
-    // Check if response is empty - this is the main issue
+    // If all models failed, throw an error
     if (!content || content.length === 0) {
-      console.error(`[${requestId}] ❌ GPT-5 returned empty response - this indicates a model issue`);
-      throw new Error('GPT-5 returned empty response - model may be having issues');
+      console.error(`[${requestId}] ❌ All models (GPT-5, GPT-4o, GPT-4-turbo) returned empty responses`);
+      throw new Error('All AI models returned empty responses - this indicates a systemic issue');
     }
     
     console.log(`[${requestId}] 🔍 First 100 chars: "${content.substring(0, 100)}"`);
@@ -150,7 +184,7 @@ Output: {"from":"JFK","to":"LAX","date":"2025-09-20","passengers":1,"class":"eco
     }
     
     const totalDuration = Date.now() - startTime;
-    console.log(`[${requestId}] 🎉 ChatGPT intent parsing completed successfully in ${totalDuration}ms`);
+    console.log(`[${requestId}] 🎉 ChatGPT intent parsing completed successfully in ${totalDuration}ms using ${successfulModel}`);
     
     // Log telemetry data
     logTelemetry('chatgpt_intent_parsing', {
@@ -158,9 +192,10 @@ Output: {"from":"JFK","to":"LAX","date":"2025-09-20","passengers":1,"class":"eco
       success: true,
       duration: totalDuration,
       openaiDuration,
+      modelUsed: successfulModel,
       messageLength: message.length,
       intent,
-      openaiUsage: data.usage
+      openaiUsage
     });
     
     return intent;
