@@ -26,6 +26,10 @@
     {
       "src": "/openapi.json",
       "dest": "/api/openapi.js"
+    },
+    {
+      "src": "/favicon.png",
+      "dest": "/index.js"
     }
   ]
 }
