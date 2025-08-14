@@ -1,10 +1,7 @@
 {
   "buildCommand": "echo 'Static OAuth URLs - no dynamic updates needed'",
+  "outputDirectory": "public",
   "rewrites": [
-    {
-      "source": "/",
-      "destination": "/index.html"
-    },
     {
       "source": "/api/:path*",
       "destination": "/api/:path*"
