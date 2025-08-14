@@ -37,11 +37,11 @@ Rules:
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-5',
         messages: [
           {
             role: 'system',
-            content: 'You are a flight intent parser. Return only valid JSON.'
+            content: 'You are a flight intent parser.  Return only valid JSON.'
           },
           {
             role: 'user',
