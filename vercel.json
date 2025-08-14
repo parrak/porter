@@ -1,21 +1,9 @@
 {
-  "version": 2,
-  "public": true,
-  "builds": [
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
-    }
-  ],
   "buildCommand": "echo 'Static OAuth URLs - no dynamic updates needed'",
   "rewrites": [
     {
       "source": "/",
       "destination": "/index.html"
-    },
-    {
-      "source": "/web-app/:path*",
-      "destination": "/web-app/:path*"
     },
     {
       "source": "/api/:path*",
@@ -28,33 +16,6 @@
     {
       "source": "/openapi.json",
       "destination": "/api/openapi.js"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "*"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "ALLOWALL"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        }
-      ]
     }
   ]
 }
