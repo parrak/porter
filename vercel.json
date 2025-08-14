@@ -54,6 +54,14 @@
       "destination": "/api/openapi.js"
     },
     {
+      "source": "/privacy-policy",
+      "destination": "/api/privacy-policy.js"
+    },
+    {
+      "source": "/",
+      "destination": "/api/privacy-policy.js"
+    },
+    {
       "source": "/(.*)",
       "destination": "/api/index.js"
     }
