@@ -343,7 +343,7 @@ function generatePersonalizedResponse(origin, destination, flights, userProfile,
     // Add user context
     if (userProfile.total_trips > 0) {
       message += `\n• Based on your ${userProfile.total_trips} previous trips`;
-      if (userProfile.average_trip_rating) {
+      if (userProfile.average_trip_rating && typeof userProfile.average_trip_rating === 'number') {
         message += ` (average rating: ${userProfile.average_trip_rating.toFixed(1)}/5)`;
       }
     }
