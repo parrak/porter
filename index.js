@@ -1,9 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 
-module.exports = (req, res) => {
+module.exports = async (req, res) => {
   try {
     const url = req.url;
+    const method = req.method;
     
     // Handle favicon requests
     if (url === '/favicon.png') {
@@ -19,6 +20,37 @@ module.exports = (req, res) => {
       } catch (error) {
         // If file doesn't exist, return 404
         res.status(404).send('Favicon not found');
+        return;
+      }
+    }
+    
+    // Handle API routes
+    if (url.startsWith('/api/')) {
+      const apiPath = url.substring(4); // Remove '/api/' prefix
+      
+      try {
+        // Dynamic import of API handlers
+        const handlerPath = path.join(__dirname, 'api', `${apiPath}.js`);
+        
+        if (fs.existsSync(handlerPath)) {
+          const handler = require(handlerPath);
+          
+          // Check if it's a function or has a default export
+          if (typeof handler === 'function') {
+            return await handler(req, res);
+          } else if (handler.default && typeof handler.default === 'function') {
+            return await handler.default(req, res);
+          } else {
+            res.status(500).send('Invalid API handler');
+            return;
+          }
+        } else {
+          res.status(404).send(`API endpoint not found: ${apiPath}`);
+          return;
+        }
+      } catch (error) {
+        console.error(`Error handling API request to ${apiPath}:`, error);
+        res.status(500).send('Internal Server Error');
         return;
       }
     }
