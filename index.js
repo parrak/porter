@@ -64,6 +64,62 @@ module.exports = async (req, res) => {
       }
     }
     
+    // Handle OpenAPI specification
+    if (url === '/openapi.json') {
+      try {
+        console.log(`📋 Serving OpenAPI specification`);
+        const openapiPath = path.join(__dirname, 'api', 'openapi.js');
+        
+        if (fs.existsSync(openapiPath)) {
+          const openapiHandler = require(openapiPath);
+          
+          if (typeof openapiHandler === 'function') {
+            return await openapiHandler(req, res);
+          } else if (openapiHandler.default && typeof openapiHandler.default === 'function') {
+            return await openapiHandler.default(req, res);
+          } else {
+            res.status(500).send('Invalid OpenAPI handler');
+            return;
+          }
+        } else {
+          res.status(404).send('OpenAPI specification not found');
+          return;
+        }
+      } catch (error) {
+        console.error('Error serving OpenAPI specification:', error);
+        res.status(500).send('Internal Server Error');
+        return;
+      }
+    }
+    
+    // Handle privacy policy
+    if (url === '/privacy-policy') {
+      try {
+        console.log(`📄 Serving privacy policy`);
+        const privacyPath = path.join(__dirname, 'api', 'privacy-policy.js');
+        
+        if (fs.existsSync(privacyPath)) {
+          const privacyHandler = require(privacyPath);
+          
+          if (typeof privacyHandler === 'function') {
+            return await privacyHandler(req, res);
+          } else if (privacyHandler.default && typeof privacyHandler.default === 'function') {
+            return await privacyHandler.default(req, res);
+          } else {
+            res.status(500).send('Invalid privacy policy handler');
+            return;
+          }
+        } else {
+          res.status(404).send('Privacy policy not found');
+          return;
+        }
+      } catch (error) {
+        console.error('Error serving privacy policy:', error);
+        res.status(500).send('Internal Server Error');
+        return;
+      }
+    }
+    
     // Handle root path - serve the HTML
     if (url === '/') {
       const htmlContent = `<!DOCTYPE html>
