@@ -440,19 +440,67 @@ module.exports = (req, res) => {
                 "oauth": ["book"]
               }
             ],
-            "description": "Book a flight using the flight offer ID from search results. Integrates with Amadeus API for real bookings.",
+            "description": "Book a flight using the flight offer data from search results. Integrates with Amadeus API for real bookings.",
             "requestBody": {
               "required": true,
               "content": {
                 "application/json": {
                   "schema": {
                     "type": "object",
-                    "required": ["flightOfferId", "passengers", "contactInfo"],
+                    "required": ["flightOffer", "passengers", "contactInfo"],
                     "properties": {
-                      "flightOfferId": {
-                        "type": "string",
-                        "description": "Flight offer ID from search results",
-                        "example": "1"
+                      "flightOffer": {
+                        "type": "object",
+                        "description": "Complete flight offer data from search results",
+                        "required": ["id", "origin", "destination", "departureDate"],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "Flight offer ID",
+                            "example": "1"
+                          },
+                          "origin": {
+                            "type": "string",
+                            "description": "Origin airport code",
+                            "example": "JFK"
+                          },
+                          "destination": {
+                            "type": "string",
+                            "description": "Destination airport code",
+                            "example": "LAX"
+                          },
+                          "departureDate": {
+                            "type": "string",
+                            "description": "Departure date in YYYY-MM-DD format",
+                            "example": "2025-09-05"
+                          },
+                          "passengers": {
+                            "type": "integer",
+                            "description": "Number of passengers",
+                            "example": 1
+                          },
+                          "travelClass": {
+                            "type": "string",
+                            "description": "Travel class",
+                            "enum": ["ECONOMY", "PREMIUM_ECONOMY", "BUSINESS", "FIRST"],
+                            "example": "ECONOMY"
+                          },
+                          "price": {
+                            "type": "object",
+                            "properties": {
+                              "total": {
+                                "type": "string",
+                                "description": "Total price",
+                                "example": "299.99"
+                              },
+                              "currency": {
+                                "type": "string",
+                                "description": "Currency code",
+                                "example": "USD"
+                              }
+                            }
+                          }
+                        }
                       },
                       "passengers": {
                         "type": "array",

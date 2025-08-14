@@ -165,7 +165,7 @@ module.exports = async (req, res) => {
     // Log booking attempt
     logTelemetry('flight_booking_attempt', {
       requestId,
-      flightOfferId: flightOffer?.id || 'unknown',
+      flightOffer: flightOffer || null,
       passengerCount: passengers.length,
       hasPaymentInfo: !!paymentInfo,
       userId: userId || 'anonymous',
@@ -195,7 +195,7 @@ module.exports = async (req, res) => {
           requestId,
           success: true,
           duration: amadeusDuration,
-          flightOfferId: flightOffer?.id || 'unknown',
+          flightOffer: flightOffer || null,
           passengerCount: passengers.length,
           bookingReference: bookingResult.bookingReference,
           userId: userId || 'anonymous'
@@ -229,7 +229,7 @@ module.exports = async (req, res) => {
           requestId,
           success: false,
           error: amadeusError.message,
-          flightOfferId: flightOffer?.id || 'unknown',
+          flightOffer: flightOffer || null,
           passengerCount: passengers.length,
           userId: userId || 'anonymous'
         });
@@ -287,7 +287,7 @@ module.exports = async (req, res) => {
       requestId,
       success: true,
       duration: totalDuration,
-      flightOfferId: flightOffer?.id || 'unknown',
+      flightOffer: flightOffer || null,
       passengerCount: passengers.length,
       dataSource: 'mock_booking',
       userId: userId || 'anonymous'
