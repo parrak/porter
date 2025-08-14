@@ -20,8 +20,8 @@ const OAUTH_CONFIG = {
   refreshTokenExpiry: 2592000 // 30 days
 };
 
-// Allow ChatGPT Actions redirect URIs
-const CHATGPT_ACTIONS_PATTERN = /^https:\/\/chatgpt\.com\/aip\/g-[a-zA-Z0-9]+\/oauth\/callback$/;
+// Allow ChatGPT Actions redirect URIs (both chatgpt.com and chat.openai.com domains)
+const CHATGPT_ACTIONS_PATTERN = /^https:\/\/(chatgpt\.com|chat\.openai\.com)\/aip\/g-[a-zA-Z0-9]+\/oauth\/callback$/;
 
 /**
  * OAuth Authorization Endpoint
@@ -81,16 +81,17 @@ async function handleAuthorization(req, res) {
       });
       
       // For ChatGPT Actions, be more flexible with client ID validation
-      // ChatGPT might send different client IDs, so we'll accept any valid format
+      // ChatGPT might send empty client IDs, so we'll generate one if needed
+      let validatedClientId;
+      
       if (!client_id || typeof client_id !== 'string' || client_id.trim() === '') {
-        return res.status(400).json({
-          error: 'invalid_client',
-          error_description: 'Client ID is required and must be a valid string'
-        });
+        console.log(`[${requestId}] ⚠️ Empty client ID received, generating one for ChatGPT Actions`);
+        validatedClientId = `chatgpt-actions-${Date.now()}`;
+      } else {
+        validatedClientId = client_id.trim();
       }
       
-      // Store the received client ID for later use
-      const validatedClientId = client_id.trim();
+      console.log(`[${requestId}] ✅ Using client ID: ${validatedClientId}`);
       
       // Validate redirect URI - allow ChatGPT Actions redirect URIs
       const isValidRedirectUri = redirect_uri === OAUTH_CONFIG.redirectUri || 
@@ -196,17 +197,20 @@ async function handleTokenRequest(req, res) {
       });
       
       // For ChatGPT Actions, be more flexible with client ID validation
-      // ChatGPT might send different client IDs, so we'll accept any valid format
+      // ChatGPT might send empty client IDs, so we'll generate one if needed
+      let validatedClientId;
+      
       if (!client_id || typeof client_id !== 'string' || client_id.trim() === '') {
-        return res.status(400).json({
-          error: 'invalid_client',
-          error_description: 'Client ID is required and must be a valid string'
-        });
+        console.log(`[${requestId}] ⚠️ Empty client ID received in token request, generating one for ChatGPT Actions`);
+        validatedClientId = `chatgpt-actions-${Date.now()}`;
+      } else {
+        validatedClientId = client_id.trim();
       }
+      
+      console.log(`[${requestId}] ✅ Using client ID for token: ${validatedClientId}`);
       
       // For now, we'll skip client secret validation for ChatGPT Actions
       // In production, you might want to implement proper client secret validation
-      const validatedClientId = client_id.trim();
       
       // Validate authorization code
       const authData = oauthState.get(code);
@@ -324,13 +328,29 @@ async function handleTokenRefresh(req, res) {
         });
       }
       
-      // Validate client credentials
-      if (client_id !== OAUTH_CONFIG.clientId || client_secret !== OAUTH_CONFIG.clientSecret) {
-        return res.status(401).json({
-          error: 'invalid_client',
-          error_description: 'Invalid client credentials'
-        });
+      // Log client credentials for debugging
+      console.log(`[${requestId}] 🔍 Refresh token client credentials:`, {
+        receivedClientId: client_id,
+        expectedClientId: OAUTH_CONFIG.clientId,
+        hasClientSecret: !!client_secret,
+        expectedClientSecret: !!OAUTH_CONFIG.clientSecret
+      });
+      
+      // For ChatGPT Actions, be more flexible with client ID validation
+      // ChatGPT might send empty client IDs, so we'll generate one if needed
+      let validatedClientId;
+      
+      if (!client_id || typeof client_id !== 'string' || client_id.trim() === '') {
+        console.log(`[${requestId}] ⚠️ Empty client ID received in refresh request, generating one for ChatGPT Actions`);
+        validatedClientId = `chatgpt-actions-${Date.now()}`;
+      } else {
+        validatedClientId = client_id.trim();
       }
+      
+      console.log(`[${requestId}] ✅ Using client ID for refresh: ${validatedClientId}`);
+      
+      // For now, we'll skip client secret validation for ChatGPT Actions
+      // In production, you might want to implement proper client secret validation
       
       // Validate refresh token
       const refreshData = refreshTokens.get(refresh_token);
