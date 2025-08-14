@@ -159,6 +159,31 @@ async function createSimplifiedSchema(client) {
   await client.query('CREATE INDEX IF NOT EXISTS idx_travel_history_user_id ON travel_history(user_id)');
   await client.query('CREATE INDEX IF NOT EXISTS idx_user_interactions_user_id ON user_interactions(user_id)');
   console.log('✅ Database indexes created');
+  
+  // Create user profile summary view
+  await client.query(`
+    CREATE OR REPLACE VIEW user_profile_summary AS
+    SELECT 
+      u.id,
+      u.email,
+      u.display_name,
+      u.first_name,
+      u.last_name,
+      u.created_at,
+      u.last_login_at,
+      COUNT(DISTINCT th.id) as total_trips,
+      AVG(th.rating) as average_trip_rating,
+      COUNT(DISTINCT up.id) as preference_categories,
+      MAX(th.created_at) as last_trip_date,
+      SUM(th.total_cost) as total_spent,
+      u.timezone,
+      u.language
+    FROM users u
+    LEFT JOIN travel_history th ON u.id = th.user_id
+    LEFT JOIN user_preferences up ON u.id = up.user_id
+    GROUP BY u.id, u.email, u.display_name, u.first_name, u.last_name, u.created_at, u.last_login_at, u.timezone, u.language
+  `);
+  console.log('✅ User profile summary view created');
 }
 
 async function insertSampleData(client) {

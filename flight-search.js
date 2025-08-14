@@ -9,23 +9,41 @@ const amadeus = new Amadeus({
 });
 
 // Flight search function using Amadeus API
-async function searchFlights(origin, destination, departureDate, returnDate = null, adults = 1) {
+async function searchFlights(searchParams) {
     try {
-        const searchParams = {
+        // Extract parameters from the searchParams object
+        const {
+            originLocationCode: origin,
+            destinationLocationCode: destination,
+            departureDate,
+            returnDate,
+            adults = 1,
+            travelClass = 'ECONOMY',
+            max = 50
+        } = searchParams;
+
+        const amadeusParams = {
             originLocationCode: origin,
             destinationLocationCode: destination,
             departureDate: departureDate,
             adults: adults,
             currencyCode: 'USD',
-            max: 50 // Maximum number of results
+            max: max
         };
 
         // Add return date if provided
         if (returnDate) {
-            searchParams.returnDate = returnDate;
+            amadeusParams.returnDate = returnDate;
         }
 
-        const response = await amadeus.shopping.flightOffersSearch.get(searchParams);
+        // Add travel class if specified
+        if (travelClass && travelClass !== 'ECONOMY') {
+            amadeusParams.travelClass = travelClass;
+        }
+
+        console.log('🔍 Amadeus API search params:', amadeusParams);
+
+        const response = await amadeus.shopping.flightOffersSearch.get(amadeusParams);
         
         // Transform Amadeus response to match our expected format
         // Convert prices from EUR to USD before processing
@@ -55,7 +73,7 @@ async function searchFlights(origin, destination, departureDate, returnDate = nu
             };
         });
 
-        return flights;
+        return { flights, dataSource: 'amadeus' };
     } catch (error) {
         console.error('Error searching flights:', error);
         throw new Error('Failed to search flights. Please try again.');
@@ -130,11 +148,20 @@ async function getFlightPricePrediction(origin, destination, departureDate) {
 
 // Example usage functions
 async function searchRoundTripFlights(origin, destination, departureDate, returnDate) {
-    return await searchFlights(origin, destination, departureDate, returnDate);
+    return await searchFlights({ 
+        originLocationCode: origin, 
+        destinationLocationCode: destination, 
+        departureDate, 
+        returnDate 
+    });
 }
 
 async function searchOneWayFlights(origin, destination, departureDate) {
-    return await searchFlights(origin, destination, departureDate);
+    return await searchFlights({ 
+        originLocationCode: origin, 
+        destinationLocationCode: destination, 
+        departureDate 
+    });
 }
 
 // Export functions for use in other modules
