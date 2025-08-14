@@ -116,10 +116,27 @@ Output: {"origin":"JFK","destination":"LAX","date":"2025-09-20","passengers":1,"
     // Parse the JSON response
     let intent;
     try {
-      intent = JSON.parse(content);
+      // Clean the content to handle markdown formatting
+      let cleanContent = content.trim();
+      
+      // Remove markdown code blocks if present
+      if (cleanContent.startsWith('```json')) {
+        cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanContent.startsWith('```')) {
+        cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      // Clean up any remaining whitespace
+      cleanContent = cleanContent.trim();
+      
+      console.log(`[${requestId}] 🔧 Cleaned content for JSON parsing:`, cleanContent);
+      
+      intent = JSON.parse(cleanContent);
       console.log(`[${requestId}] 📋 Parsed intent:`, intent);
     } catch (parseError) {
       console.error(`[${requestId}] ❌ Failed to parse JSON response:`, parseError);
+      console.error(`[${requestId}] ❌ Raw content was:`, content);
+      console.error(`[${requestId}] ❌ Cleaned content was:`, cleanContent);
       throw new Error('Invalid JSON response from ChatGPT');
     }
     
