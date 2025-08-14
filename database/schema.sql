@@ -154,6 +154,26 @@ CREATE TABLE user_communication_preferences (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Passenger details for quick reuse
+CREATE TABLE passenger_details (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    passenger_type VARCHAR(20) NOT NULL, -- 'adult', 'child', 'infant'
+    title VARCHAR(10), -- 'Mr', 'Ms', 'Dr', etc.
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    date_of_birth DATE,
+    document_type VARCHAR(50), -- 'passport', 'national_id', 'drivers_license'
+    document_number VARCHAR(100),
+    document_expiry_date DATE,
+    nationality VARCHAR(100),
+    is_primary_passenger BOOLEAN DEFAULT false, -- For the main user
+    is_favorite BOOLEAN DEFAULT false, -- Mark as favorite for quick access
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Indexes for performance
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_display_name ON users(display_name);
@@ -172,6 +192,9 @@ CREATE INDEX idx_user_favorites_user_id ON user_favorites(user_id);
 CREATE INDEX idx_user_feedback_user_id ON user_feedback(user_id);
 CREATE INDEX idx_user_goals_user_id ON user_goals(user_id);
 CREATE INDEX idx_user_goals_status ON user_goals(status);
+CREATE INDEX idx_passenger_details_user_id ON passenger_details(user_id);
+CREATE INDEX idx_passenger_details_primary ON passenger_details(user_id, is_primary_passenger);
+CREATE INDEX idx_passenger_details_favorite ON passenger_details(user_id, is_favorite);
 
 -- JSONB indexes for efficient querying
 CREATE INDEX idx_user_preferences_jsonb ON user_preferences USING GIN (preferences);
@@ -196,6 +219,7 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECU
 CREATE TRIGGER update_user_preferences_updated_at BEFORE UPDATE ON user_preferences FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_user_goals_updated_at BEFORE UPDATE ON user_goals FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_user_communication_preferences_updated_at BEFORE UPDATE ON user_communication_preferences FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_passenger_details_updated_at BEFORE UPDATE ON passenger_details FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Views for common queries
 CREATE VIEW user_profile_summary AS

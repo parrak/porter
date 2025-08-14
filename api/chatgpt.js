@@ -445,6 +445,38 @@ async function extractBookingInfo(message, flightIntent, requestId) {
   console.log(`[${requestId}] 🔍 Extracting booking information from message...`);
   
   try {
+    // First, check if user has saved passenger details
+    let savedPassengers = [];
+    let hasSavedDetails = false;
+    
+    try {
+      // Try to fetch saved passenger details (this would require user authentication)
+      // For now, we'll simulate this with a mock response
+      const mockSavedPassengers = [
+        {
+          id: '1',
+          passenger_type: 'adult',
+          title: 'Mr',
+          first_name: 'John',
+          last_name: 'Doe',
+          date_of_birth: '1990-01-01',
+          document_type: 'passport',
+          document_number: 'AB123456',
+          document_expiry_date: '2030-01-01',
+          nationality: 'US',
+          is_primary_passenger: true,
+          is_favorite: true
+        }
+      ];
+      
+      savedPassengers = mockSavedPassengers;
+      hasSavedDetails = true;
+      
+      console.log(`[${requestId}] 💾 Found ${savedPassengers.length} saved passenger details`);
+    } catch (error) {
+      console.log(`[${requestId}] ⚠️ Could not fetch saved passenger details: ${error.message}`);
+    }
+    
     // Use ChatGPT to extract structured booking information
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -476,14 +508,16 @@ async function extractBookingInfo(message, flightIntent, requestId) {
   "paymentInfo": {
     "method": "credit_card|debit_card|paypal",
     "cardNumber": "last4digits"
-  }
+  },
+  "useSavedPassengers": boolean,
+  "savePassengerDetails": boolean
 }
 
-If information is missing, use null for those fields. Extract what you can from the message.`
+If information is missing, use null for those fields. Extract what you can from the message. If the user mentions using saved details or wants to save details, set the appropriate boolean flags.`
           },
           {
             role: 'user',
-            content: `Extract booking information from: "${message}"`
+            content: `Extract booking information from: "${message}". User has ${savedPassengers.length} saved passenger details available.`
           }
         ],
         max_completion_tokens: 500
@@ -499,13 +533,30 @@ If information is missing, use null for those fields. Extract what you can from 
     
     console.log(`[${requestId}] ✅ Extracted booking information:`, extractedInfo);
     
+    // If user wants to use saved passengers, populate from saved data
+    if (extractedInfo.useSavedPassengers && hasSavedDetails && savedPassengers.length > 0) {
+      console.log(`[${requestId}] 🔄 Using saved passenger details`);
+      extractedInfo.passengers = savedPassengers.map(passenger => ({
+        firstName: passenger.first_name,
+        lastName: passenger.last_name,
+        dateOfBirth: passenger.date_of_birth,
+        documentNumber: passenger.document_number,
+        documentExpiryDate: passenger.document_expiry_date,
+        gender: 'MALE', // Default, could be enhanced
+        savedPassengerId: passenger.id
+      }));
+    }
+    
     // Validate extracted information
     const validation = validateBookingInfo(extractedInfo);
     
     return {
       ...extractedInfo,
       isComplete: validation.isValid,
-      missingFields: validation.missingFields
+      missingFields: validation.missingFields,
+      hasSavedDetails,
+      savedPassengers,
+      shouldOfferToSave: extractedInfo.savePassengerDetails || false
     };
     
   } catch (error) {
@@ -1106,6 +1157,38 @@ module.exports = async (req, res) => {
             intent: flightIntent
           });
           
+          // Save passenger details if requested
+          if (bookingInfo.shouldOfferToSave && bookingInfo.passengers) {
+            try {
+              console.log(`[${requestId}] 💾 Saving passenger details for future use...`);
+              
+              // Save each passenger to the database
+              for (const passenger of bookingInfo.passengers) {
+                if (passenger.firstName && passenger.lastName) {
+                  await savePassengerDetails({
+                    passenger_type: 'adult',
+                    title: passenger.title || 'Mr',
+                    first_name: passenger.firstName,
+                    last_name: passenger.lastName,
+                    date_of_birth: passenger.dateOfBirth,
+                    document_type: passenger.documentType || 'passport',
+                    document_number: passenger.documentNumber,
+                    document_expiry_date: passenger.documentExpiryDate,
+                    nationality: passenger.nationality || 'US',
+                    is_primary_passenger: true,
+                    is_favorite: true,
+                    notes: 'Saved from flight booking'
+                  }, userId, requestId);
+                }
+              }
+              
+              console.log(`[${requestId}] ✅ Passenger details saved successfully`);
+            } catch (saveError) {
+              console.log(`[${requestId}] ⚠️ Could not save passenger details: ${saveError.message}`);
+              // Don't fail the booking if saving details fails
+            }
+          }
+          
           // Return the booking confirmation
           const response = {
             success: true,
@@ -1199,6 +1282,9 @@ module.exports = async (req, res) => {
           originalIntent: flightIntent,
           missingInfo: bookingInfo.missingFields,
           firstTurnMessage: "When I check prices with our travel API, you'll see a one-time confirmation popup. This ensures your data is sent securely — you can approve and continue without repeating steps.",
+          hasSavedPassengers: bookingInfo.hasSavedDetails,
+          savedPassengers: bookingInfo.savedPassengers,
+          shouldOfferToSave: bookingInfo.shouldOfferToSave,
           requiredInfo: {
             passengers: {
               description: "Passenger details for each traveler",
@@ -1221,9 +1307,19 @@ module.exports = async (req, res) => {
             }
           },
           nextStep: "Please provide the missing passenger and contact information, and I'll complete your booking.",
+          passengerOptions: bookingInfo.hasSavedDetails ? [
+            "Use my saved passenger details",
+            "Enter new passenger information",
+            "Save these passenger details for future use"
+          ] : [
+            "Enter passenger information",
+            "Save passenger details for future use"
+          ],
           examples: [
             "Book for John Doe, born 1990-01-01, passport AB123456 expires 2030-01-01, contact john@example.com, phone +1-555-123-4567",
-            "I'm John Doe, passport AB123456, contact me at john@example.com or +1-555-123-4567"
+            "I'm John Doe, passport AB123456, contact me at john@example.com or +1-555-123-4567",
+            "Use my saved passenger details",
+            "Save these details for next time"
           ]
         };
         
@@ -1232,6 +1328,8 @@ module.exports = async (req, res) => {
           requestId,
           success: false,
           missingFields: bookingInfo.missingFields,
+          hasSavedPassengers: bookingInfo.hasSavedDetails,
+          shouldOfferToSave: bookingInfo.shouldOfferToSave,
           userId: userId || 'anonymous',
           intent: flightIntent
         });
@@ -1787,3 +1885,38 @@ module.exports = async (req, res) => {
     });
   }
 };
+
+// Helper function to save passenger details to the database
+async function savePassengerDetails(passengerData, userId, requestId) {
+  try {
+    console.log(`[${requestId}] 💾 Saving passenger details for: ${passengerData.first_name} ${passengerData.last_name}`);
+    
+    // Call the passenger-details API to save the data
+    const saveResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/passenger-details`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-ID': requestId,
+        'X-Source': 'chatgpt-endpoint'
+      },
+      body: JSON.stringify({
+        ...passengerData,
+        userId: userId
+      })
+    });
+    
+    if (!saveResponse.ok) {
+      const errorText = await saveResponse.text();
+      throw new Error(`Failed to save passenger details: ${saveResponse.status} - ${errorText}`);
+    }
+    
+    const saveResult = await saveResponse.json();
+    console.log(`[${requestId}] ✅ Passenger details saved with ID: ${saveResult.passengerId}`);
+    
+    return saveResult;
+    
+  } catch (error) {
+    console.error(`[${requestId}] ❌ Failed to save passenger details:`, error);
+    throw error;
+  }
+}
