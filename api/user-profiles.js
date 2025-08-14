@@ -57,25 +57,26 @@ async function createOrUpdateProfile(req, res) {
         message: 'User profile created successfully',
         user: newUser.rows[0]
       });
-    } else {
-      // Update existing user
-      const updatedUser = await executeQuery(`
-        UPDATE users 
-        SET email = COALESCE($2, email),
-            display_name = COALESCE($3, display_name),
-            first_name = COALESCE($4, first_name),
-            last_name = COALESCE($5, last_name),
-            phone = COALESCE($6, phone),
-            date_of_birth = COALESCE($7, date_of_birth),
-            profile_picture_url = COALESCE($8, profile_picture_url),
-            timezone = COALESCE($9, timezone),
-            language = COALESCE($10, language),
-            updated_at = NOW()
-        WHERE id = $1
-        RETURNING *
-      `, [user_id, email, display_name, first_name, last_name, phone, date_of_birth, profile_picture_url, timezone, language]);
+         } else {
+       // Update existing user - use the existing user's ID
+       const existingUserId = existingUser.rows[0].id;
+       const updatedUser = await executeQuery(`
+         UPDATE users 
+         SET email = COALESCE($2, email),
+             display_name = COALESCE($3, display_name),
+             first_name = COALESCE($4, first_name),
+             last_name = COALESCE($5, last_name),
+             phone = COALESCE($6, phone),
+             date_of_birth = COALESCE($7, date_of_birth),
+             profile_picture_url = COALESCE($8, profile_picture_url),
+             timezone = COALESCE($9, timezone),
+             language = COALESCE($10, language),
+             updated_at = NOW()
+         WHERE id = $1
+         RETURNING *
+       `, [existingUserId, email, display_name, first_name, last_name, phone, date_of_birth, profile_picture_url, timezone, language]);
 
-      console.log(`[${requestId}] ✅ User profile updated: ${user_id}`);
+             console.log(`[${requestId}] ✅ User profile updated: ${existingUserId}`);
       
       return res.status(200).json({
         success: true,
@@ -96,7 +97,7 @@ async function createOrUpdateProfile(req, res) {
 // Get user profile
 async function getUserProfile(req, res) {
   const requestId = generateRequestId();
-  const { user_id } = req.params;
+  const { user_id } = req.query;
   
   console.log(`[${requestId}] 📋 Getting user profile for user: ${user_id}`);
   
@@ -165,8 +166,7 @@ async function getUserProfile(req, res) {
 // Update user preferences
 async function updatePreferences(req, res) {
   const requestId = generateRequestId();
-  const { user_id } = req.params;
-  const { category, preferences } = req.body;
+  const { user_id, category, preferences } = req.body;
   
   console.log(`[${requestId}] 🔧 Updating preferences for user: ${user_id}, category: ${category}`);
   
@@ -215,8 +215,7 @@ async function updatePreferences(req, res) {
 // Add travel history entry
 async function addTravelHistory(req, res) {
   const requestId = generateRequestId();
-  const { user_id } = req.params;
-  const travelData = req.body;
+  const { user_id, ...travelData } = req.body;
   
   console.log(`[${requestId}] ✈️ Adding travel history for user: ${user_id}`);
   
@@ -282,8 +281,7 @@ async function addTravelHistory(req, res) {
 // Track user interaction
 async function trackInteraction(req, res) {
   const requestId = generateRequestId();
-  const { user_id } = req.params;
-  const interactionData = req.body;
+  const { user_id, ...interactionData } = req.body;
   
   console.log(`[${requestId}] 📊 Tracking interaction for user: ${user_id}`);
   
@@ -338,7 +336,7 @@ async function trackInteraction(req, res) {
 // Get user recommendations based on preferences and history
 async function getUserRecommendations(req, res) {
   const requestId = generateRequestId();
-  const { user_id } = req.params;
+  const { user_id } = req.query;
   
   console.log(`[${requestId}] 🎯 Getting recommendations for user: ${user_id}`);
   
