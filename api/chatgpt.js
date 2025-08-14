@@ -13,8 +13,8 @@ Input: "${message}"
 
 Return this exact JSON structure:
 {
-  "from": "airport_code",
-  "to": "airport_code", 
+  "origin": "airport_code",
+  "destination": "airport_code", 
   "date": "YYYY-MM-DD",
   "passengers": number,
   "class": "economy"
@@ -27,7 +27,7 @@ Rules:
 - If no date given, use a future date (not today)
 
 Example: "Find me a flight from New York to Los Angeles on September 20th"
-Output: {"from":"JFK","to":"LAX","date":"2025-09-20","passengers":1,"class":"economy"}`;
+Output: {"origin":"JFK","destination":"LAX","date":"2025-09-20","passengers":1,"class":"economy"}`;
 
     console.log(`[${requestId}] 📤 Sending request to OpenAI API...`);
     console.log(`[${requestId}] 📝 Prompt: ${prompt.substring(0, 100)}...`);
@@ -178,9 +178,9 @@ Output: {"from":"JFK","to":"LAX","date":"2025-09-20","passengers":1,"class":"eco
     console.log(`[${requestId}] 🎯 Parsed intent: ${JSON.stringify(intent)}`);
     
     // Validate required fields
-    if (!intent.from || !intent.to) {
+    if (!intent.origin || !intent.destination) {
       console.error(`[${requestId}] ❌ Missing required fields in parsed intent: ${JSON.stringify(intent)}`);
-      throw new Error('Missing required fields: from, to');
+      throw new Error('Missing required fields: origin, destination');
     }
     
     const totalDuration = Date.now() - startTime;

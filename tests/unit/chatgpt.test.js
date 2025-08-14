@@ -59,7 +59,7 @@ describe('ChatGPT API', () => {
       const mockResponse = {
         choices: [{
           message: {
-            content: '{"from":"JFK","to":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
+            content: '{"origin":"JFK","destination":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
           }
         }],
         usage: { total_tokens: 50 }
@@ -92,8 +92,8 @@ describe('ChatGPT API', () => {
         expect.objectContaining({
           success: false, // API always asks for more info
           originalIntent: expect.objectContaining({
-            from: 'JFK',
-            to: 'LAX',
+            origin: 'JFK',
+            destination: 'LAX',
             date: '2025-09-15',
             passengers: 1,
             class: 'economy'
@@ -184,7 +184,7 @@ describe('ChatGPT API', () => {
       const mockResponse = {
         choices: [{
           message: {
-            content: '{"from":"JFK","to":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
+            content: '{"origin":"JFK","destination":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
           }
         }],
         usage: { total_tokens: 50 }
@@ -206,8 +206,8 @@ describe('ChatGPT API', () => {
         expect.objectContaining({
           success: false, // API always asks for more info
           originalIntent: expect.objectContaining({
-            from: 'JFK',
-            to: 'LAX'
+            origin: 'JFK',
+            destination: 'LAX'
           })
         })
       );
@@ -231,7 +231,7 @@ describe('ChatGPT API', () => {
       const mockResponse = {
         choices: [{
           message: {
-            content: '{"from":"JFK","to":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
+            content: '{"origin":"JFK","destination":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
           }
         }],
         usage: { total_tokens: 50 }
@@ -253,8 +253,8 @@ describe('ChatGPT API', () => {
         expect.objectContaining({
           success: false, // API always asks for more info
           originalIntent: expect.objectContaining({
-            from: 'JFK',
-            to: 'LAX'
+            origin: 'JFK',
+            destination: 'LAX'
           })
         })
       );
@@ -266,7 +266,7 @@ describe('ChatGPT API', () => {
       const mockResponse = {
         choices: [{
           message: {
-            content: '{"from":"JFK","to":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
+            content: '{"origin":"JFK","destination":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
           }
         }],
         usage: { total_tokens: 50 }
@@ -287,8 +287,8 @@ describe('ChatGPT API', () => {
         expect.objectContaining({
           success: false, // API always asks for more info
           originalIntent: expect.objectContaining({
-            from: 'JFK',
-            to: 'LAX',
+            origin: 'JFK',
+            destination: 'LAX',
             date: '2025-09-15',
             passengers: 1,
             class: 'economy'
@@ -304,7 +304,7 @@ describe('ChatGPT API', () => {
       const mockResponse = {
         choices: [{
           message: {
-            content: '{"from":"JFK","to":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
+            content: '{"origin":"JFK","destination":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
           }
         }],
         usage: { total_tokens: 50 }
@@ -338,7 +338,7 @@ describe('ChatGPT API', () => {
       const mockResponse = {
         choices: [{
           message: {
-            content: '{"from":"JFK","to":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
+            content: '{"origin":"JFK","destination":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
           }
         }],
         usage: { total_tokens: 50 }
@@ -430,7 +430,7 @@ describe('ChatGPT API', () => {
       const mockResponse = {
         choices: [{
           message: {
-            content: '{"from":"JFK","to":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
+            content: '{"origin":"JFK","destination":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
           }
         }],
         usage: { total_tokens: 50 }
@@ -456,7 +456,7 @@ describe('ChatGPT API', () => {
       const mockResponse = {
         choices: [{
           message: {
-            content: '{"from":"JFK","to":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
+            content: '{"origin":"JFK","destination":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
           }
         }],
         usage: { total_tokens: 50 }
