@@ -25,12 +25,15 @@ jest.mock('../../utils/common', () => ({
   logTelemetry: jest.fn()
 }));
 
+// Import after mocking
 const { OpenAI } = require('openai');
 const { executeQuery } = require('../../database/connection');
 const { generateRequestId, logTelemetry } = require('../../utils/common');
 
 describe('ChatGPT API', () => {
-  let mockOpenAI, mockReq, mockRes;
+  let mockOpenAI;
+  let mockReq;
+  let mockRes;
 
   beforeEach(() => {
     // Reset mocks
@@ -38,7 +41,6 @@ describe('ChatGPT API', () => {
     
     // Setup mock OpenAI
     mockOpenAI = new OpenAI();
-    mockOpenAI.chat.completions.create.mockClear();
     
     // Setup mock request/response
     mockReq = {
