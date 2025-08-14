@@ -7,9 +7,11 @@ async function parseFlightIntentWithChatGPT(message) {
   
   try {
     // Use ChatGPT to parse the flight intent
-    const prompt = `Interpret the user's request the best you can. Pick a airport pair which makes most sense. If you can't then offer a couple of suggestions back to the user.
+    const prompt = `You are a flight intent parser. Your task is to extract flight booking information and return ONLY a valid JSON object.
 
-Return ONLY a JSON object with the following structure:
+CRITICAL: Return ONLY the JSON object, no explanations, no additional text, no markdown formatting.
+
+Expected JSON structure:
 {
   "from": "airport_code",
   "to": "airport_code", 
@@ -26,7 +28,10 @@ Rules:
 - Default to economy class if not specified
 - Default to 1 passenger if not specified
 - Use today's date if no date specified
-- Return ONLY the JSON, no other text`;
+- Return ONLY the JSON object, no other text or formatting
+
+Example output:
+{"from":"JFK","to":"LAX","date":"2024-12-15","passengers":1,"class":"economy"}`;
 
     console.log(`[${requestId}] 📤 Sending request to OpenAI API...`);
     console.log(`[${requestId}] 📝 Prompt: ${prompt.substring(0, 100)}...`);
@@ -72,15 +77,67 @@ Rules:
     
     const content = data.choices[0].message.content.trim();
     console.log(`[${requestId}] 📄 Raw ChatGPT response: ${content}`);
+    console.log(`[${requestId}] 📏 Response length: ${content.length} characters`);
+    console.log(`[${requestId}] 🔍 First 100 chars: "${content.substring(0, 100)}"`);
+    console.log(`[${requestId}] 🔍 Last 100 chars: "${content.substring(Math.max(0, content.length - 100))}"`);
+    console.log(`[${requestId}] 🔍 Contains { at position: ${content.indexOf('{')}`);
+    console.log(`[${requestId}] 🔍 Contains } at position: ${content.lastIndexOf('}')}`);
     
-    // Extract JSON from the response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error(`[${requestId}] ❌ No valid JSON found in ChatGPT response`);
-      throw new Error('No valid JSON found in response');
+    // Extract JSON from the response - try multiple approaches
+    let jsonMatch = null;
+    let intent = null;
+    
+    // First, try to find JSON object with regex
+    jsonMatch = content.match(/\{[\s\S]*\}/);
+    
+    if (jsonMatch) {
+      try {
+        intent = JSON.parse(jsonMatch[0]);
+        console.log(`[${requestId}] ✅ JSON extracted successfully with regex`);
+      } catch (parseError) {
+        console.log(`[${requestId}] ⚠️ JSON parse failed with regex, trying alternative extraction...`);
+      }
     }
     
-    const intent = JSON.parse(jsonMatch[0]);
+    // If regex failed, try to find JSON by looking for content between { and }
+    if (!intent) {
+      const startBrace = content.indexOf('{');
+      const endBrace = content.lastIndexOf('}');
+      
+      if (startBrace !== -1 && endBrace !== -1 && endBrace > startBrace) {
+        const jsonString = content.substring(startBrace, endBrace + 1);
+        try {
+          intent = JSON.parse(jsonString);
+          console.log(`[${requestId}] ✅ JSON extracted successfully with brace matching`);
+        } catch (parseError) {
+          console.log(`[${requestId}] ⚠️ JSON parse failed with brace matching: ${parseError.message}`);
+        }
+      }
+    }
+    
+    // If still no success, try to clean the content and parse
+    if (!intent) {
+      try {
+        // Remove common GPT formatting artifacts
+        let cleanedContent = content
+          .replace(/```json\s*/g, '')
+          .replace(/```\s*/g, '')
+          .replace(/^[^{]*/, '')  // Remove text before first {
+          .replace(/}[^}]*$/, '}'); // Remove text after last }
+        
+        intent = JSON.parse(cleanedContent);
+        console.log(`[${requestId}] ✅ JSON extracted successfully with content cleaning`);
+      } catch (parseError) {
+        console.log(`[${requestId}] ⚠️ JSON parse failed with content cleaning: ${parseError.message}`);
+      }
+    }
+    
+    if (!intent) {
+      console.error(`[${requestId}] ❌ No valid JSON found in ChatGPT response after multiple extraction attempts`);
+      console.error(`[${requestId}] 🔍 Response content: "${content}"`);
+      throw new Error('No valid JSON found in response after multiple extraction attempts');
+    }
+    
     console.log(`[${requestId}] 🎯 Parsed intent: ${JSON.stringify(intent)}`);
     
     // Validate required fields
