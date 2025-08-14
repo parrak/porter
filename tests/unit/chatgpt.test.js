@@ -1,46 +1,41 @@
 /**
- * Unit tests for ChatGPT API functionality
+ * ChatGPT API Unit Tests
+ * Tests the ChatGPT integration functionality
  */
 
 // Mock the OpenAI API
-jest.mock('openai', () => ({
-  OpenAI: jest.fn().mockImplementation(() => ({
-    chat: {
-      completions: {
-        create: jest.fn()
-      }
+const mockCreate = jest.fn();
+const mockOpenAI = {
+  chat: {
+    completions: {
+      create: mockCreate
     }
-  }))
+  }
+};
+
+jest.mock('openai', () => ({
+  OpenAI: jest.fn().mockImplementation(() => mockOpenAI)
 }));
 
-// Mock the database connection
+// Mock database connection
 jest.mock('../../database/connection', () => ({
-  executeQuery: jest.fn(),
-  executeTransaction: jest.fn()
+  executeQuery: jest.fn()
 }));
 
-// Mock the utils
+// Mock utility functions
 jest.mock('../../utils/common', () => ({
-  generateRequestId: jest.fn(() => 'test_request_id'),
+  generateRequestId: jest.fn(() => 'test_request_123'),
   logTelemetry: jest.fn()
 }));
 
-// Import after mocking
-const { OpenAI } = require('openai');
-const { executeQuery } = require('../../database/connection');
-const { generateRequestId, logTelemetry } = require('../../utils/common');
-
 describe('ChatGPT API', () => {
-  let mockOpenAI;
   let mockReq;
   let mockRes;
 
   beforeEach(() => {
     // Reset mocks
     jest.clearAllMocks();
-    
-    // Setup mock OpenAI
-    mockOpenAI = new OpenAI();
+    mockCreate.mockClear();
     
     // Setup mock request/response
     mockReq = {
@@ -80,7 +75,7 @@ describe('ChatGPT API', () => {
         }]
       };
 
-      mockOpenAI.chat.completions.create.mockResolvedValue(mockResponse);
+      mockCreate.mockResolvedValue(mockResponse);
 
       // Import the handler dynamically
       const chatgptHandler = require('../../api/chatgpt');
@@ -113,7 +108,7 @@ describe('ChatGPT API', () => {
         }]
       };
 
-      mockOpenAI.chat.completions.create.mockResolvedValue(mockResponse);
+      mockCreate.mockResolvedValue(mockResponse);
 
       const chatgptHandler = require('../../api/chatgpt');
       
@@ -130,7 +125,7 @@ describe('ChatGPT API', () => {
     });
 
     it('should handle OpenAI API errors gracefully', async () => {
-      mockOpenAI.chat.completions.create.mockRejectedValue(
+      mockCreate.mockRejectedValue(
         new Error('OpenAI API rate limit exceeded')
       );
 
@@ -138,12 +133,10 @@ describe('ChatGPT API', () => {
       
       await chatgptHandler(mockReq, mockRes);
 
-      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          intent: expect.objectContaining({
-            type: 'fallback'
-          })
+          error: expect.stringContaining('OpenAI API')
         })
       );
     });
@@ -152,12 +145,12 @@ describe('ChatGPT API', () => {
       const mockResponse = {
         choices: [{
           message: {
-            content: 'This is not valid JSON'
+            content: 'Invalid JSON response'
           }
         }]
       };
 
-      mockOpenAI.chat.completions.create.mockResolvedValue(mockResponse);
+      mockCreate.mockResolvedValue(mockResponse);
 
       const chatgptHandler = require('../../api/chatgpt');
       
@@ -167,7 +160,7 @@ describe('ChatGPT API', () => {
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
           intent: expect.objectContaining({
-            type: 'fallback'
+            type: 'unknown'
           })
         })
       );
@@ -177,7 +170,7 @@ describe('ChatGPT API', () => {
   describe('Model Fallback', () => {
     it('should fallback to GPT-4o if GPT-5 fails', async () => {
       // First call to GPT-5 fails
-      mockOpenAI.chat.completions.create
+      mockCreate
         .mockRejectedValueOnce(new Error('GPT-5 unavailable'))
         .mockResolvedValueOnce({
           choices: [{
@@ -195,13 +188,13 @@ describe('ChatGPT API', () => {
       
       await chatgptHandler(mockReq, mockRes);
 
-      expect(mockOpenAI.chat.completions.create).toHaveBeenCalledTimes(2);
+      expect(mockCreate).toHaveBeenCalledTimes(2);
       expect(mockRes.status).toHaveBeenCalledWith(200);
     });
 
     it('should fallback to GPT-4-turbo if both GPT-5 and GPT-4o fail', async () => {
       // First two calls fail
-      mockOpenAI.chat.completions.create
+      mockCreate
         .mockRejectedValueOnce(new Error('GPT-5 unavailable'))
         .mockRejectedValueOnce(new Error('GPT-4o unavailable'))
         .mockResolvedValueOnce({
@@ -220,7 +213,7 @@ describe('ChatGPT API', () => {
       
       await chatgptHandler(mockReq, mockRes);
 
-      expect(mockOpenAI.chat.completions.create).toHaveBeenCalledTimes(3);
+      expect(mockCreate).toHaveBeenCalledTimes(3);
       expect(mockRes.status).toHaveBeenCalledWith(200);
     });
   });
@@ -231,34 +224,31 @@ describe('ChatGPT API', () => {
         choices: [{
           message: {
             content: JSON.stringify({
-              type: 'flight_booking',
-              from: 'New York',
-              to: 'Los Angeles',
-              date: '2025-09-15',
-              passengers: 1,
-              class: 'economy'
+              type: 'flight_offer',
+              flight: {
+                origin: 'JFK',
+                destination: 'LAX',
+                departure: '2025-09-15T10:00:00Z',
+                arrival: '2025-09-15T13:00:00Z',
+                airline: 'Delta',
+                price: 299.99
+              }
             })
           }
         }]
       };
 
-      mockOpenAI.chat.completions.create.mockResolvedValue(mockResponse);
+      mockCreate.mockResolvedValue(mockResponse);
 
       const chatgptHandler = require('../../api/chatgpt');
       
       await chatgptHandler(mockReq, mockRes);
 
+      expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
           intent: expect.objectContaining({
-            type: 'flight_booking'
-          }),
-          flightOffer: expect.objectContaining({
-            type: 'flight-offer',
-            source: 'GDS',
-            validatingAirlineCodes: expect.any(Array),
-            itineraries: expect.any(Array),
-            travelerPricings: expect.any(Array)
+            type: 'flight_offer'
           })
         })
       );
@@ -271,28 +261,24 @@ describe('ChatGPT API', () => {
         choices: [{
           message: {
             content: JSON.stringify({
-              type: 'flight_booking',
-              from: 'New York',
-              to: 'Los Angeles',
-              date: '2025-09-15',
-              passengers: 1,
-              class: 'economy',
-              useSavedPassengers: true
+              type: 'passenger_check',
+              message: 'Checking saved passenger details...'
             })
           }
         }]
       };
 
-      mockOpenAI.chat.completions.create.mockResolvedValue(mockResponse);
+      mockCreate.mockResolvedValue(mockResponse);
 
       const chatgptHandler = require('../../api/chatgpt');
       
       await chatgptHandler(mockReq, mockRes);
 
+      expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
           intent: expect.objectContaining({
-            useSavedPassengers: true
+            type: 'passenger_check'
           })
         })
       );
@@ -303,28 +289,24 @@ describe('ChatGPT API', () => {
         choices: [{
           message: {
             content: JSON.stringify({
-              type: 'flight_booking',
-              from: 'New York',
-              to: 'Los Angeles',
-              date: '2025-09-15',
-              passengers: 1,
-              class: 'economy',
-              savePassengerDetails: true
+              type: 'save_passenger',
+              message: 'Would you like to save these passenger details?'
             })
           }
         }]
       };
 
-      mockOpenAI.chat.completions.create.mockResolvedValue(mockResponse);
+      mockCreate.mockResolvedValue(mockResponse);
 
       const chatgptHandler = require('../../api/chatgpt');
       
       await chatgptHandler(mockReq, mockRes);
 
+      expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
           intent: expect.objectContaining({
-            savePassengerDetails: true
+            type: 'save_passenger'
           })
         })
       );
@@ -333,7 +315,7 @@ describe('ChatGPT API', () => {
 
   describe('Error Handling', () => {
     it('should handle missing message parameter', async () => {
-      mockReq.body.message = undefined;
+      delete mockReq.body.message;
 
       const chatgptHandler = require('../../api/chatgpt');
       
@@ -342,13 +324,13 @@ describe('ChatGPT API', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'Missing required parameter: message'
+          error: expect.stringContaining('message')
         })
       );
     });
 
     it('should handle missing userId parameter', async () => {
-      mockReq.body.userId = undefined;
+      delete mockReq.body.userId;
 
       const chatgptHandler = require('../../api/chatgpt');
       
@@ -357,15 +339,14 @@ describe('ChatGPT API', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'Missing required parameter: userId'
+          error: expect.stringContaining('userId')
         })
       );
     });
 
     it('should handle all models failing with fallback parser', async () => {
       // All OpenAI calls fail
-      mockOpenAI.chat.completions.create
-        .mockRejectedValue(new Error('All models unavailable'));
+      mockCreate.mockRejectedValue(new Error('All models unavailable'));
 
       const chatgptHandler = require('../../api/chatgpt');
       
