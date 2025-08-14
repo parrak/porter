@@ -1485,6 +1485,9 @@ module.exports = async (req, res) => {
         intent: flightIntent,
         requestId,
         flights: searchData.flights || [],
+        // Include complete Amadeus flight offers for booking
+        // Frontend should use flightOffers[flightIndex] when sending to book-flight endpoint
+        flightOffers: searchData.flightOffers || [],
         searchParams: searchData.searchParams || searchParams,
         dataSource: searchData.dataSource || 'unknown',
         searchDuration: searchDuration,
@@ -1494,39 +1497,7 @@ module.exports = async (req, res) => {
           preferences: userProfile.preferences,
           recentContext: userProfile.recentContext
         } : null,
-        firstTurnMessage: "When I check prices with our travel API, you'll see a one-time confirmation popup. This ensures your data is sent securely — you can approve and continue without repeating steps.",
-        // Enhanced passenger details collection
-        requiresPassengerDetails: true,
-        passengerCollectionMessage: "Great! I found flights for you. Now I need passenger details to complete your booking. Please provide:",
-        passengerFields: [
-          "First and last name",
-          "Date of birth (YYYY-MM-DD)",
-          "Passport/document number",
-          "Document expiry date",
-          "Nationality"
-        ],
-        passengerExample: {
-          firstName: "John",
-          lastName: "Doe",
-          dateOfBirth: "1990-01-01",
-          documentNumber: "US123456789",
-          documentExpiryDate: "2030-01-01",
-          nationality: "United States"
-        },
-        nextSteps: [
-          "1. Provide passenger details for each traveler",
-          "2. Confirm flight selection",
-          "3. Complete booking and save passenger info for future use"
-        ],
-        // Add passenger details submission endpoint
-        passengerSubmissionEndpoint: "/api/chatgpt",
-        passengerSubmissionAction: "complete_booking",
-        passengerSubmissionFormat: {
-          action: "complete_booking",
-          flightData: "Selected flight object",
-          passengerDetails: "Array of passenger objects",
-          userId: "User identifier"
-        }
+        firstTurnMessage: "When I check prices with our travel API, you'll see a one-time confirmation popup. This ensures your data is sent securely — you can approve and continue without repeating steps."
       };
       
       // If user profile doesn't exist, create one with the search context
@@ -2577,6 +2548,9 @@ module.exports = async (req, res) => {
         intent: flightIntent,
         requestId,
         flights: searchData.flights || [],
+        // Include complete Amadeus flight offers for booking
+        // Frontend should use flightOffers[flightIndex] when sending to book-flight endpoint
+        flightOffers: searchData.flightOffers || [],
         searchParams: searchData.searchParams || searchParams,
         dataSource: searchData.dataSource || 'unknown',
         searchDuration: searchDuration,
@@ -2586,39 +2560,7 @@ module.exports = async (req, res) => {
           preferences: userProfile.preferences,
           recentContext: userProfile.recentContext
         } : null,
-        firstTurnMessage: "When I check prices with our travel API, you'll see a one-time confirmation popup. This ensures your data is sent securely — you can approve and continue without repeating steps.",
-        // Enhanced passenger details collection
-        requiresPassengerDetails: true,
-        passengerCollectionMessage: "Great! I found flights for you. Now I need passenger details to complete your booking. Please provide:",
-        passengerFields: [
-          "First and last name",
-          "Date of birth (YYYY-MM-DD)",
-          "Passport/document number",
-          "Document expiry date",
-          "Nationality"
-        ],
-        passengerExample: {
-          firstName: "John",
-          lastName: "Doe",
-          dateOfBirth: "1990-01-01",
-          documentNumber: "US123456789",
-          documentExpiryDate: "2030-01-01",
-          nationality: "United States"
-        },
-        nextSteps: [
-          "1. Provide passenger details for each traveler",
-          "2. Confirm flight selection",
-          "3. Complete booking and save passenger info for future use"
-        ],
-        // Add passenger details submission endpoint
-        passengerSubmissionEndpoint: "/api/chatgpt",
-        passengerSubmissionAction: "complete_booking",
-        passengerSubmissionFormat: {
-          action: "complete_booking",
-          flightData: "Selected flight object",
-          passengerDetails: "Array of passenger objects",
-          userId: "User identifier"
-        }
+        firstTurnMessage: "When I check prices with our travel API, you'll see a one-time confirmation popup. This ensures your data is sent securely — you can approve and continue without repeating steps."
       };
       
       // If user profile doesn't exist, create one with the search context
