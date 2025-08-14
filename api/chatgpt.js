@@ -38,21 +38,21 @@ Rules:
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
       },
-      body: JSON.stringify({
-        model: 'gpt-5',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a flight intent parser. Return only valid JSON.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 150
-      })
+              body: JSON.stringify({
+          model: 'gpt-5',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a flight intent parser. Return only valid JSON.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.1,
+          max_completion_tokens: 150
+        })
     });
 
     const openaiEndTime = Date.now();
@@ -300,7 +300,7 @@ If information is missing, use null for those fields. Extract what you can from 
           }
         ],
         temperature: 0.1,
-        max_tokens: 500
+        max_completion_tokens: 500
       })
     });
 
