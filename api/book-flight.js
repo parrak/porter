@@ -316,6 +316,10 @@ module.exports = async (req, res) => {
   }
 };
 
+// Export the Amadeus booking function for testing purposes
+module.exports.bookFlightWithAmadeus = bookFlightWithAmadeus;
+module.exports.enhanceFlightOfferForAmadeus = enhanceFlightOfferForAmadeus;
+
 // Amadeus flight booking function
 async function bookFlightWithAmadeus(flightOffer, passengers, contactInfo, paymentInfo, requestId) {
   const { convertCurrency } = require('../utils/currency-converter');
