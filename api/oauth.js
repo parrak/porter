@@ -637,12 +637,15 @@ async function handleOAuth(req, res) {
     case 'introspect':
       console.log(`[${requestId}] ✅ Routing to handleTokenIntrospection`);
       return await handleTokenIntrospection(req, res);
+    case 'status':
+      console.log(`[${requestId}] ✅ Routing to handleOAuthStatus`);
+      return await handleOAuthStatus(req, res);
     default:
       console.log(`[${requestId}] ❌ Unknown OAuth endpoint: ${oauthEndpoint}`);
-      console.log(`[${requestId}] 🔍 Available endpoints: authorize, token, refresh, userinfo, introspect`);
+      console.log(`[${requestId}] 🔍 Available endpoints: authorize, token, refresh, userinfo, introspect, status`);
       res.status(404).json({
         error: 'not_found',
-        error_description: `OAuth endpoint not found: ${oauthEndpoint}. Available endpoints: authorize, token, refresh, userinfo, introspect`
+        error_description: `OAuth endpoint not found: ${oauthEndpoint}. Available endpoints: authorize, token, refresh, userinfo, introspect, status`
       });
   }
 }
@@ -681,6 +684,69 @@ async function getUserProfile(userId, requestId) {
       travelStyle: 'business'
     }
   };
+}
+
+/**
+ * OAuth Status Endpoint
+ * GET /api/oauth/status
+ * This provides OAuth configuration information without requiring authentication
+ */
+async function handleOAuthStatus(req, res) {
+  const requestId = generateRequestId();
+  
+  console.log(`[${requestId}] 📊 OAuth status request: ${req.method} ${req.url}`);
+  
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  
+  // Handle preflight OPTIONS request
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
+  if (req.method === 'GET') {
+    try {
+      // Return OAuth configuration information
+      res.status(200).json({
+        success: true,
+        message: 'OAuth service is operational',
+        oauth: {
+          service: 'Porter Travel OAuth 2.0',
+          version: '1.0.0',
+          status: 'operational',
+          endpoints: {
+            authorize: '/api/oauth/authorize',
+            token: '/api/oauth/token',
+            refresh: '/api/oauth/refresh',
+            userinfo: '/api/oauth/userinfo',
+            introspect: '/api/oauth/introspect',
+            status: '/api/oauth/status'
+          },
+          supported_grant_types: ['authorization_code'],
+          supported_scopes: OAUTH_CONFIG.scopes,
+          client_id: OAUTH_CONFIG.clientId,
+          redirect_uri_pattern: 'https://chatgpt.com/aip/g-XXXXXXXX/oauth/callback'
+        },
+        timestamp: new Date().toISOString(),
+        requestId
+      });
+      
+    } catch (error) {
+      console.error(`[${requestId}] ❌ OAuth status error:`, error);
+      res.status(500).json({
+        error: 'server_error',
+        error_description: 'Internal server error during status check'
+      });
+    }
+  } else {
+    res.status(405).json({
+      error: 'method_not_allowed',
+      error_description: 'Only GET method is allowed for status'
+    });
+  }
 }
 
 // Export the main handler
