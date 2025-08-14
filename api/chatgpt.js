@@ -7,7 +7,9 @@ async function parseFlightIntentWithChatGPT(message) {
   
   try {
     // Use ChatGPT to parse the flight intent
-    const prompt = `Parse this flight request and return ONLY a JSON object with the following structure:
+    const prompt = `Interpret the user's request the best you can. Pick a airport pair which makes most sense. If you can't then offer a couple of suggestions back to the user.
+
+Return ONLY a JSON object with the following structure:
 {
   "from": "airport_code",
   "to": "airport_code", 
