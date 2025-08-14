@@ -32,6 +32,14 @@ async function handleAuthorization(req, res) {
   const requestId = generateRequestId();
   
   console.log(`[${requestId}] 🔐 OAuth authorization request: ${req.method} ${req.url}`);
+  console.log(`[${requestId}] 🔍 Full request details:`, {
+    method: req.method,
+    url: req.url,
+    originalUrl: req.originalUrl,
+    path: req.path,
+    query: req.query,
+    headers: req.headers
+  });
   
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -576,11 +584,14 @@ async function handleTokenIntrospection(req, res) {
 // Main OAuth handler - handles all OAuth routes
 async function handleOAuth(req, res) {
   const requestId = generateRequestId();
-  const path = req.url.split('?')[0];
+  
+  // Get the full URL and parse it properly
+  const fullUrl = req.url || req.originalUrl || '';
+  const path = fullUrl.split('?')[0];
   
   console.log(`[${requestId}] 🔐 OAuth request received:`, {
     method: req.method,
-    url: req.url,
+    url: fullUrl,
     path: path,
     query: req.query,
     headers: {
@@ -591,9 +602,12 @@ async function handleOAuth(req, res) {
   });
   
   // Extract the specific OAuth endpoint from the path
-  const oauthEndpoint = path.split('/').pop();
+  // Handle both /oauth/authorize and /oauth/authorize/ patterns
+  const pathParts = path.split('/').filter(part => part.length > 0);
+  const oauthEndpoint = pathParts[pathParts.length - 1];
   
   console.log(`[${requestId}] 🎯 Routing to OAuth endpoint: ${oauthEndpoint}`);
+  console.log(`[${requestId}] 🔍 Path parts: ${JSON.stringify(pathParts)}`);
   
   switch (oauthEndpoint) {
     case 'authorize':
@@ -607,9 +621,10 @@ async function handleOAuth(req, res) {
     case 'introspect':
       return await handleTokenIntrospection(req, res);
     default:
+      console.log(`[${requestId}] ❌ Unknown OAuth endpoint: ${oauthEndpoint}`);
       res.status(404).json({
         error: 'not_found',
-        error_description: 'OAuth endpoint not found'
+        error_description: `OAuth endpoint not found: ${oauthEndpoint}`
       });
   }
 }
