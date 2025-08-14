@@ -1,5 +1,6 @@
 // Amadeus API integration for flight search
 const Amadeus = require('amadeus');
+const { convertFlightOffersPrices, convertDestinationPrices } = require('./utils/currency-converter');
 
 // Initialize Amadeus client
 const amadeus = new Amadeus({
@@ -27,7 +28,10 @@ async function searchFlights(origin, destination, departureDate, returnDate = nu
         const response = await amadeus.shopping.flightOffersSearch.get(searchParams);
         
         // Transform Amadeus response to match our expected format
-        const flights = response.data.map((offer, index) => {
+        // Convert prices from EUR to USD before processing
+        const convertedOffers = await convertFlightOffersPrices(response.data);
+        
+        const flights = convertedOffers.map((offer, index) => {
             const outboundSegment = offer.itineraries[0].segments[0];
             const inboundSegment = offer.itineraries[1]?.segments[0];
             
@@ -43,7 +47,11 @@ async function searchFlights(origin, destination, departureDate, returnDate = nu
                 flightNumber: outboundSegment.number,
                 duration: offer.itineraries[0].duration,
                 stops: offer.itineraries[0].segments.length - 1,
-                cabinClass: offer.travelerPricings[0].fareDetailsBySegment[0].cabin
+                cabinClass: offer.travelerPricings[0].fareDetailsBySegment[0].cabin,
+                // Include conversion info for transparency
+                originalPrice: offer.price.originalPrice,
+                originalCurrency: offer.price.originalCurrency,
+                exchangeRate: offer.price.exchangeRate
             };
         });
 
@@ -81,12 +89,19 @@ async function getFlightInspiration(origin) {
             origin: origin
         });
 
-        return response.data.map(destination => ({
+        // Convert prices from EUR to USD
+        const convertedDestinations = await convertDestinationPrices(response.data);
+
+        return convertedDestinations.map(destination => ({
             destination: destination.destination,
             departureDate: destination.departureDate,
             returnDate: destination.returnDate,
             price: parseFloat(destination.price.total),
-            currency: destination.price.currency
+            currency: destination.price.currency,
+            // Include conversion info for transparency
+            originalPrice: destination.price.originalPrice,
+            originalCurrency: destination.price.originalCurrency,
+            exchangeRate: destination.price.exchangeRate
         }));
     } catch (error) {
         console.error('Error getting flight inspiration:', error);

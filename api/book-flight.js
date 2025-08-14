@@ -316,6 +316,7 @@ module.exports = async (req, res) => {
 
 // Amadeus flight booking function
 async function bookFlightWithAmadeus(flightOfferId, passengers, contactInfo, paymentInfo, requestId) {
+  const { convertCurrency } = require('../utils/currency-converter');
   console.log(`[${requestId}] 🔑 Getting Amadeus access token...`);
   
   try {
@@ -471,15 +472,34 @@ async function bookFlightWithAmadeus(flightOfferId, passengers, contactInfo, pay
     const orderData = await orderResponse.json();
     console.log(`[${requestId}] ✅ Amadeus flight order created successfully`);
     
-    // Extract booking information
+    // Extract booking information and convert prices to USD
     const bookingReference = orderData.data.id;
+    let totalPrice = orderData.data.price?.total || 'N/A';
+    let currency = orderData.data.price?.currency || 'USD';
+    
+    // Convert price to USD if it's in EUR
+    if (currency === 'EUR' && totalPrice !== 'N/A') {
+      try {
+        const converted = await convertCurrency(totalPrice, 'EUR', 'USD');
+        totalPrice = converted.price.toString();
+        currency = 'USD';
+        console.log(`[${requestId}] 💱 Converted booking price from EUR ${orderData.data.price.total} to USD ${totalPrice} (rate: ${converted.exchangeRate})`);
+      } catch (error) {
+        console.log(`[${requestId}] ⚠️ Currency conversion failed, using original price: ${error.message}`);
+      }
+    }
+    
     const bookingDetails = {
       status: orderData.data.status || 'confirmed',
       confirmationNumber: bookingReference,
       bookingDate: orderData.data.createdAt || new Date().toISOString(),
-      totalPrice: orderData.data.price?.total || 'N/A',
-      currency: orderData.data.price?.currency || 'USD',
-      flightDetails: orderData.data.flightOffers?.[0] || {}
+      totalPrice: totalPrice,
+      currency: currency,
+      flightDetails: orderData.data.flightOffers?.[0] || {},
+      // Include conversion info if applicable
+      originalPrice: orderData.data.price?.total,
+      originalCurrency: orderData.data.price?.currency,
+      exchangeRate: currency === 'USD' && orderData.data.price?.currency === 'EUR' ? 'converted' : undefined
     };
     
     console.log(`[${requestId}] 🎉 Flight booking completed with reference: ${bookingReference}`);

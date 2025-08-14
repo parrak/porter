@@ -434,17 +434,47 @@ async function searchAmadeusFlights(from, to, date, passengers, travelClass, req
     const searchData = await searchResponse.json();
     console.log(`[${requestId}] ✅ Amadeus flight search completed, found ${searchData.data?.length || 0} flights`);
     
-    // Transform Amadeus data to our format
-    const flights = (searchData.data || []).map((flight, index) => ({
-      flightNumber: flight.itineraries[0]?.segments[0]?.carrierCode + flight.itineraries[0]?.segments[0]?.number || `AM${index + 1}`,
-      route: `${from} → ${to}`,
-      time: `${flight.itineraries[0]?.segments[0]?.departure?.at?.substring(11, 16)} - ${flight.itineraries[0]?.segments[flight.itineraries[0]?.segments.length - 1]?.arrival?.at?.substring(11, 16)}`,
-      stops: flight.itineraries[0]?.segments.length > 1 ? `${flight.itineraries[0]?.segments.length - 1} stop(s)` : "Direct",
-      price: flight.pricingOptions[0]?.price?.total || "N/A",
-      seats: flight.numberOfBookableSeats || 1,
-      airline: flight.validatingAirlineCodes?.[0] || "Amadeus Airlines",
-      class: travelClass,
-      amadeusData: flight
+    // Transform Amadeus data to our format with currency conversion
+    const { convertCurrency } = require('../utils/currency-converter');
+    
+    const flights = await Promise.all((searchData.data || []).map(async (flight, index) => {
+      let price = flight.pricingOptions[0]?.price?.total || "N/A";
+      let currency = flight.pricingOptions[0]?.price?.currency || "EUR";
+      let originalPrice = price;
+      let originalCurrency = currency;
+      let exchangeRate = 1;
+      
+      // Convert price from EUR to USD if needed
+      if (currency === "EUR" && price !== "N/A") {
+        try {
+          const converted = await convertCurrency(price, "EUR", "USD");
+          price = converted.price.toString();
+          currency = "USD";
+          originalPrice = converted.originalPrice;
+          originalCurrency = converted.originalCurrency;
+          exchangeRate = converted.exchangeRate;
+          console.log(`[${requestId}] 💱 Converted flight price from EUR ${originalPrice} to USD ${price} (rate: ${exchangeRate})`);
+        } catch (error) {
+          console.log(`[${requestId}] ⚠️ Currency conversion failed for flight ${index + 1}: ${error.message}`);
+        }
+      }
+      
+      return {
+        flightNumber: flight.itineraries[0]?.segments[0]?.carrierCode + flight.itineraries[0]?.segments[0]?.number || `AM${index + 1}`,
+        route: `${from} → ${to}`,
+        time: `${flight.itineraries[0]?.segments[0]?.departure?.at?.substring(11, 16)} - ${flight.itineraries[0]?.segments[flight.itineraries[0]?.segments.length - 1]?.arrival?.at?.substring(11, 16)}`,
+        stops: flight.itineraries[0]?.segments.length > 1 ? `${flight.itineraries[0]?.segments.length - 1} stop(s)` : "Direct",
+        price: price,
+        currency: currency,
+        seats: flight.numberOfBookableSeats || 1,
+        airline: flight.validatingAirlineCodes?.[0] || "Amadeus Airlines",
+        class: travelClass,
+        // Include conversion info for transparency
+        originalPrice: originalPrice,
+        originalCurrency: originalCurrency,
+        exchangeRate: exchangeRate,
+        amadeusData: flight
+      };
     }));
     
     return flights;
