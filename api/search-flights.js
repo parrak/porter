@@ -15,47 +15,60 @@ module.exports = async (req, res) => {
       returnDate, 
       adults, 
       travelClass,
-      user_id // New parameter for user identification
+      user_id, // New parameter for user identification
+      // Backward compatibility with old parameter names
+      from,
+      to,
+      date,
+      passengers
     } = req.body;
 
-    console.log(`[${requestId}] 🚀 Flight search request: ${origin} → ${destination} on ${departureDate} for user: ${user_id || 'anonymous'}`);
+    // Support both old and new parameter formats
+    const actualOrigin = origin || from;
+    const actualDestination = destination || to;
+    const actualDepartureDate = departureDate || date;
+    const actualAdults = adults || passengers || 1;
+    const actualUserId = user_id;
+
+    console.log(`[${requestId}] 🚀 Flight search request: ${actualOrigin} → ${actualDestination} on ${actualDepartureDate} for user: ${actualUserId || 'anonymous'}`);
 
     // Validate required parameters
-    if (!origin || !destination || !departureDate) {
+    if (!actualOrigin || !actualDestination || !actualDepartureDate) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required parameters: origin, destination, departureDate'
+        error: 'Missing required parameters: origin/from, destination/to, departureDate/date'
       });
     }
 
     let userPreferences = null;
     let userProfile = null;
-    let actualUserId = user_id; // Create a separate variable for the actual user ID
+    // actualUserId is already declared above, no need to redeclare
 
     // Load user profile and preferences if user_id is provided
-    if (user_id) {
+    if (actualUserId) {
       try {
         // If user_id is an email address (string), look up the actual user ID first
-        if (typeof user_id === 'string' && user_id.includes('@')) {
+        let databaseUserId = actualUserId;
+        if (typeof actualUserId === 'string' && actualUserId.includes('@')) {
           const userResult = await executeQuery(`
             SELECT id FROM users WHERE email = $1
-          `, [user_id]);
+          `, [actualUserId]);
           
           if (userResult.rows.length > 0) {
-            actualUserId = userResult.rows[0].id;
-            console.log(`[${requestId}] 🔍 Found user ID ${actualUserId} for email ${user_id}`);
+            databaseUserId = userResult.rows[0].id;
+            console.log(`[${requestId}] 🔍 Found user ID ${databaseUserId} for email ${actualUserId}`);
           } else {
-            console.log(`[${requestId}] ⚠️ No user found for email ${user_id}, continuing without profile`);
-            actualUserId = null;
+            console.log(`[${requestId}] ⚠️ No user found for email ${actualUserId}, continuing without profile`);
+            databaseUserId = null;
           }
         }
         
         // Only proceed with profile loading if we have a valid user ID
-        if (actualUserId && !isNaN(actualUserId)) {
+        if (databaseUserId && !isNaN(databaseUserId)) {
           // Get user profile
           const profileResult = await executeQuery(`
             SELECT * FROM user_profile_summary WHERE id = $1
-          `, [actualUserId]);
+          `, [databaseUserId]);
           
           if (profileResult.rows.length > 0) {
             userProfile = profileResult.rows[0];
@@ -63,7 +76,7 @@ module.exports = async (req, res) => {
             // Get user preferences
             const preferencesResult = await executeQuery(`
               SELECT category, preferences FROM user_preferences WHERE user_id = $1
-            `, [actualUserId]);
+            `, [databaseUserId]);
             
             userPreferences = preferencesResult.rows.reduce((acc, row) => {
               acc[row.category] = row.preferences;
@@ -81,11 +94,11 @@ module.exports = async (req, res) => {
 
     // Build search parameters
     const searchParams = {
-      originLocationCode: origin,
-      destinationLocationCode: destination,
-      departureDate: departureDate,
+      originLocationCode: actualOrigin,
+      destinationLocationCode: actualDestination,
+      departureDate: actualDepartureDate,
       returnDate: returnDate,
-      adults: adults || 1,
+      adults: actualAdults,
       travelClass: travelClass || 'ECONOMY',
       max: 50
     };
@@ -153,7 +166,7 @@ module.exports = async (req, res) => {
             searchDuration,
             resultsCount: enhancedFlights.length
           }), 
-          `${origin} to ${destination} on ${departureDate}`,
+          `${actualOrigin} to ${actualDestination} on ${actualDepartureDate}`,
           enhancedFlights.length
         ]);
       } catch (error) {
@@ -163,8 +176,8 @@ module.exports = async (req, res) => {
 
     // Generate personalized response message
     const responseMessage = generatePersonalizedResponse(
-      origin, 
-      destination, 
+      actualOrigin, 
+      actualDestination, 
       enhancedFlights, 
       userProfile, 
       userPreferences
