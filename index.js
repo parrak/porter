@@ -32,8 +32,17 @@ module.exports = async (req, res) => {
       
       try {
         // Extract the base handler name (first path segment)
-        const pathSegments = apiPath.split('/');
+        const pathSegments = apiPath.split('/').filter(segment => segment.length > 0);
         const baseHandler = pathSegments[0]; // e.g., 'users' from 'users/a@b.com'
+        
+        console.log(`🔍 Path segments: [${pathSegments.join(', ')}]`);
+        console.log(`🎯 Base handler: "${baseHandler}"`);
+        
+        if (!baseHandler || baseHandler.length === 0) {
+          console.error(`❌ Invalid API path: ${apiPath}`);
+          res.status(400).send('Invalid API endpoint');
+          return;
+        }
         
         // Dynamic import of API handlers
         const handlerPath = path.join(__dirname, 'api', `${baseHandler}.js`);
