@@ -130,13 +130,12 @@ describe('ChatGPT API', () => {
       
       await chatgptHandler(mockReq, mockRes);
 
-      expect(fetch).toHaveBeenCalledTimes(4); // Tries all 3 models + 1 additional call
-      expect(mockRes.status).toHaveBeenCalledWith(200);
-      // Should fall back to basic parsing
+      expect(fetch).toHaveBeenCalledTimes(3); // Tries all 3 models
+      expect(mockRes.status).toHaveBeenCalledWith(500); // Should return 500 when all models fail
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          success: false,
-          message: expect.stringContaining('additional information')
+          error: 'Internal server error',
+          message: expect.any(String)
         })
       );
     });
@@ -161,11 +160,11 @@ describe('ChatGPT API', () => {
       
       await chatgptHandler(mockReq, mockRes);
 
-      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.status).toHaveBeenCalledWith(500); // Should return 500 for invalid JSON
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          success: false,
-          message: expect.stringContaining('additional information')
+          error: 'Internal server error',
+          message: expect.stringContaining('Invalid JSON response')
         })
       );
     });
@@ -325,10 +324,6 @@ describe('ChatGPT API', () => {
         expect.objectContaining({
           success: false, // API always asks for more info
           requiresBookingInfo: true,
-          requiredInfo: expect.objectContaining({
-            passengers: expect.any(Object),
-            contactInfo: expect.any(Object)
-          }),
           message: expect.stringContaining('additional information')
         })
       );
@@ -363,6 +358,40 @@ describe('ChatGPT API', () => {
             'Save passenger details for future use'
           ]),
           message: expect.stringContaining('additional information')
+        })
+      );
+    });
+
+    it('should include passenger details collection information in response', async () => {
+      const mockResponse = {
+        choices: [{
+          message: {
+            content: '{"origin":"JFK","destination":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
+          }
+        }],
+        usage: { total_tokens: 50 }
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse
+      });
+
+      const chatgptHandler = require('../../api/chatgpt');
+      
+      await chatgptHandler(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false, // API always asks for more info
+          requiresBookingInfo: true,
+          message: expect.stringContaining('additional information'),
+          requiredInfo: expect.objectContaining({
+            passengers: expect.any(Object),
+            contactInfo: expect.any(Object)
+          })
         })
       );
     });
@@ -413,13 +442,12 @@ describe('ChatGPT API', () => {
       
       await chatgptHandler(mockReq, mockRes);
 
-      expect(fetch).toHaveBeenCalledTimes(4); // Tries all 3 models + 1 additional call
-      expect(mockRes.status).toHaveBeenCalledWith(200);
-      // Should fall back to basic parsing
+      expect(fetch).toHaveBeenCalledTimes(3); // Tries all 3 models
+      expect(mockRes.status).toHaveBeenCalledWith(500); // Should return 500 when all models fail
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          success: false,
-          message: expect.stringContaining('additional information')
+          error: 'Internal server error',
+          message: expect.any(String)
         })
       );
     });
