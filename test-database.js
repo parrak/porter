@@ -62,13 +62,12 @@ async function testDatabase() {
       };
       
       try {
-        // Create test user
+        // Create test user (don't specify ID - let SERIAL handle it)
         const createResult = await executeQuery(`
-          INSERT INTO users (id, email, display_name, first_name, last_name, phone, timezone, language)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          INSERT INTO users (email, display_name, first_name, last_name, phone, timezone, language)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
           RETURNING id, email, display_name
         `, [
-          testUserId,
           testUserData.email,
           testUserData.display_name,
           testUserData.first_name,
@@ -78,6 +77,7 @@ async function testDatabase() {
           testUserData.language
         ]);
         
+        const createdUserId = createResult.rows[0].id;
         console.log('✅ Test user created successfully:', createResult.rows[0]);
         
         // Test preference creation
@@ -93,13 +93,13 @@ async function testDatabase() {
           INSERT INTO user_preferences (user_id, category, preferences)
           VALUES ($1, $2, $3)
           RETURNING id, category
-        `, [testUserId, 'travel_style', JSON.stringify(testPreferences.travel_style)]);
+        `, [createdUserId, 'travel_style', JSON.stringify(testPreferences.travel_style)]);
         
         console.log('✅ Test preferences created successfully:', prefResult.rows[0]);
         
         // Clean up test data
-        await executeQuery('DELETE FROM user_preferences WHERE user_id = $1', [testUserId]);
-        await executeQuery('DELETE FROM users WHERE id = $1', [testUserId]);
+        await executeQuery('DELETE FROM user_preferences WHERE user_id = $1', [createdUserId]);
+        await executeQuery('DELETE FROM users WHERE id = $1', [createdUserId]);
         console.log('🧹 Test data cleaned up');
         
       } catch (error) {

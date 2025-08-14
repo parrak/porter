@@ -13,7 +13,7 @@
     "update-current": "node scripts/update-current-oauth.js porter-preview.vercel.app",
     "update-env": "node scripts/update-env-vars.js",
     "setup-db": "node setup-database.js",
-    "setup-vercel-db": "node setup-vercel-postgres.js",
+    "setup-neon-db": "node setup-neon-postgres.js",
     "test-db": "node test-database.js",
     "demo-profile": "node demo-user-profile.js",
     "test": "jest",

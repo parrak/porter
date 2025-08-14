@@ -1,9 +1,9 @@
 const { Pool } = require('pg');
 
-// Database configuration - supports both local and Vercel Postgres
+// Database configuration - supports both local and Neon Postgres
 const dbConfig = {
-  // For Vercel Postgres (production)
-  connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
+  // For Neon Postgres (production)
+  connectionString: process.env.NEON_DATABASE_URL || process.env.DATABASE_URL || process.env.POSTGRES_URL,
   
   // For local development (fallback)
   user: process.env.DB_USER || 'postgres',
@@ -12,8 +12,8 @@ const dbConfig = {
   password: process.env.DB_PASSWORD || 'password',
   port: process.env.DB_PORT || 5432,
   
-  // SSL configuration
-  ssl: process.env.NODE_ENV === 'production' || process.env.POSTGRES_URL ? { rejectUnauthorized: false } : false,
+  // SSL configuration - Neon requires SSL
+  ssl: process.env.NEON_DATABASE_URL || process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   
   // Connection pool settings
   max: 20, // Maximum number of clients in the pool
