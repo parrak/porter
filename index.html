@@ -31,9 +31,43 @@
             opacity: 0.9;
         }
         
+        .options {
+            background: white;
+            padding: 1rem 2rem;
+            text-align: center;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .option-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 0 0.5rem;
+            transition: background 0.3s ease;
+        }
+        
+        .option-button:hover {
+            background: #5a6fd8;
+        }
+        
+        .option-button.secondary {
+            background: transparent;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .option-button.secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+        
         .webapp-container {
             width: 100%;
-            height: calc(100vh - 100px);
+            height: calc(100vh - 180px);
             border: none;
             background: white;
         }
@@ -82,6 +116,10 @@
         .retry-button:hover {
             background: #5a6fd8;
         }
+        
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -90,12 +128,17 @@
         <div class="tagline">AI-Powered Travel Planning & Flight Search</div>
     </div>
     
+    <div class="options">
+        <button class="option-button" onclick="showEmbedded()">Use Embedded App</button>
+        <button class="option-button secondary" onclick="openDirect()">Open in New Tab</button>
+    </div>
+    
     <div id="loading" class="loading">
         <div class="spinner"></div>
         Loading your AI travel assistant...
     </div>
     
-    <div id="error" class="error-message" style="display: none;">
+    <div id="error" class="error-message hidden">
         <h3>Unable to load the travel planner</h3>
         <p>The web app is currently unavailable. Please try again later.</p>
         <button class="retry-button" onclick="loadWebApp()">Retry</button>
@@ -105,35 +148,46 @@
         id="webapp"
         class="webapp-container"
         src="https://porter-g0ay7qcvw-rakesh-paridas-projects.vercel.app"
-        style="display: none;"
+        class="hidden"
         onload="webAppLoaded()"
         onerror="webAppError()">
     </iframe>
     
     <script>
+        function showEmbedded() {
+            document.getElementById('loading').style.display = 'flex';
+            document.getElementById('error').classList.add('hidden');
+            document.getElementById('webapp').classList.remove('hidden');
+        }
+        
+        function openDirect() {
+            window.open('https://porter-g0ay7qcvw-rakesh-paridas-projects.vercel.app', '_blank');
+        }
+        
         function webAppLoaded() {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('webapp').style.display = 'block';
+            document.getElementById('loading').classList.add('hidden');
         }
         
         function webAppError() {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('error').style.display = 'block';
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('error').classList.remove('hidden');
         }
         
         function loadWebApp() {
-            document.getElementById('error').style.display = 'none';
-            document.getElementById('loading').style.display = 'flex';
-            document.getElementById('webapp').style.display = 'none';
+            document.getElementById('error').classList.add('hidden');
+            document.getElementById('loading').classList.remove('hidden');
             
             // Reload the iframe
             const iframe = document.getElementById('webapp');
             iframe.src = iframe.src;
         }
         
+        // Show embedded app by default
+        showEmbedded();
+        
         // Fallback: if iframe doesn't load within 10 seconds, show error
         setTimeout(() => {
-            if (document.getElementById('loading').style.display !== 'none') {
+            if (!document.getElementById('loading').classList.contains('hidden')) {
                 webAppError();
             }
         }, 10000);
