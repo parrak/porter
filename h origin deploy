@@ -1,0 +1,5 @@
+[33m211e504[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mdeploy[m[33m, [m[1;31morigin/deploy[m[33m)[m Add fallback to GPT-4o and GPT-4-turbo when GPT-5 returns empty responses
+[33mdc8f309[m Fix flight booking to use complete flight offer data instead of problematic ID-based API calls
+[33mb15870c[m Fix const reassignment and database user ID issues in search-flights
+[33mce75094[m Fix parameter mapping between fallback parser and search-flights API for compatibility
+[33m64818e2[m Fix user_id parameter handling in search-flights to support email addresses

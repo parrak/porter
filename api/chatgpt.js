@@ -1046,6 +1046,22 @@ module.exports = async (req, res) => {
           // Call the book-flight endpoint
           const bookingStartTime = Date.now();
           
+          // Get flight offer data for the booking
+          const flightOffer = {
+            id: bookingInfo.flightOfferId || '1',
+            // Add basic flight information from the intent
+            origin: flightIntent.from,
+            destination: flightIntent.to,
+            departureDate: flightIntent.date,
+            passengers: flightIntent.passengers,
+            travelClass: flightIntent.class.toUpperCase(),
+            // Add mock pricing for demo purposes
+            price: {
+              total: '299.99',
+              currency: 'USD'
+            }
+          };
+          
           const bookingResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/book-flight`, {
             method: 'POST',
             headers: {
@@ -1054,7 +1070,7 @@ module.exports = async (req, res) => {
               'X-Source': 'chatgpt-endpoint'
             },
             body: JSON.stringify({
-              flightOfferId: bookingInfo.flightOfferId || '1', // Default for demo
+              flightOffer: flightOffer, // Send complete flight offer object
               passengers: bookingInfo.passengers,
               contactInfo: bookingInfo.contactInfo,
               paymentInfo: bookingInfo.paymentInfo,
