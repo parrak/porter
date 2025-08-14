@@ -10,60 +10,24 @@
   "buildCommand": "echo 'Static OAuth URLs - no dynamic updates needed'",
   "rewrites": [
     {
-      "source": "/api/health",
-      "destination": "/api/health.js"
+      "source": "/",
+      "destination": "/index.html"
     },
     {
-      "source": "/api/openapi",
-      "destination": "/api/openapi.js"
+      "source": "/web-app/:path*",
+      "destination": "/web-app/:path*"
     },
     {
-      "source": "/api/chatgpt",
-      "destination": "/api/chatgpt.js"
-    },
-    {
-      "source": "/api/search-flights",
-      "destination": "/api/search-flights.js"
-    },
-    {
-      "source": "/api/book-flight",
-      "destination": "/api/book-flight.js"
-    },
-    {
-      "source": "/api/users/:id",
-      "destination": "/api/users.js"
-    },
-    {
-      "source": "/api/oauth/:path*",
-      "destination": "/api/oauth.js"
-    },
-    {
-      "source": "/api/test",
-      "destination": "/api/test.js"
-    },
-    {
-      "source": "/api/public",
-      "destination": "/api/public.js"
-    },
-    {
-      "source": "/health",
-      "destination": "/api/health.js"
-    },
-    {
-      "source": "/openapi.json",
-      "destination": "/api/openapi.js"
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
     },
     {
       "source": "/privacy-policy",
       "destination": "/api/privacy-policy.js"
     },
     {
-      "source": "/",
-      "destination": "/api/privacy-policy.js"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/api/index.js"
+      "source": "/openapi.json",
+      "destination": "/api/openapi.js"
     }
   ],
   "headers": [
