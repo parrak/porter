@@ -346,9 +346,19 @@ async function bookFlightWithAmadeus(flightOffer, passengers, contactInfo, payme
     
     // Use the flight offer data directly instead of fetching it again
     console.log(`[${requestId}] ✅ Using provided flight offer data for booking`);
+    console.log(`[${requestId}] 📋 Original flight offer:`, JSON.stringify(flightOffer, null, 2));
     
     // Enhance the flight offer with required Amadeus fields if they're missing
-    const enhancedFlightOffer = enhanceFlightOfferForAmadeus(flightOffer, requestId);
+    console.log(`[${requestId}] 🔧 About to call enhanceFlightOfferForAmadeus...`);
+    let enhancedFlightOffer;
+    try {
+      enhancedFlightOffer = enhanceFlightOfferForAmadeus(flightOffer, requestId);
+      console.log(`[${requestId}] ✅ Flight offer enhancement completed`);
+    } catch (enhanceError) {
+      console.error(`[${requestId}] ❌ Flight offer enhancement failed:`, enhanceError);
+      // Fall back to using original flight offer
+      enhancedFlightOffer = flightOffer;
+    }
     
     // Step 1: Create flight order (booking) directly with the flight offer data
     console.log(`[${requestId}] 🎫 Creating flight order with Amadeus...`);
