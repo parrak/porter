@@ -50,7 +50,6 @@ Rules:
               content: prompt
             }
           ],
-          temperature: 0.1,
           max_completion_tokens: 150
         })
     });
@@ -299,7 +298,6 @@ If information is missing, use null for those fields. Extract what you can from 
             content: `Extract booking information from: "${message}"`
           }
         ],
-        temperature: 0.1,
         max_completion_tokens: 500
       })
     });

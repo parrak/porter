@@ -608,23 +608,41 @@ async function handleOAuth(req, res) {
   
   console.log(`[${requestId}] 🎯 Routing to OAuth endpoint: ${oauthEndpoint}`);
   console.log(`[${requestId}] 🔍 Path parts: ${JSON.stringify(pathParts)}`);
+  console.log(`[${requestId}] 🔍 Full path: ${path}`);
+  console.log(`[${requestId}] 🔍 Full URL: ${fullUrl}`);
+  
+  // Handle the case where the path might be just '/oauth' or '/oauth/'
+  if (pathParts.length === 1 && pathParts[0] === 'oauth') {
+    console.log(`[${requestId}] ⚠️ Path is just '/oauth', checking query parameters for endpoint`);
+    // Check if there's an endpoint in the query or if we should default to authorize
+    if (req.query.response_type === 'code') {
+      console.log(`[${requestId}] 🎯 Detected authorization request from query params, routing to authorize`);
+      return await handleAuthorization(req, res);
+    }
+  }
   
   switch (oauthEndpoint) {
     case 'authorize':
+      console.log(`[${requestId}] ✅ Routing to handleAuthorization`);
       return await handleAuthorization(req, res);
     case 'token':
+      console.log(`[${requestId}] ✅ Routing to handleTokenRequest`);
       return await handleTokenRequest(req, res);
     case 'refresh':
+      console.log(`[${requestId}] ✅ Routing to handleTokenRefresh`);
       return await handleTokenRefresh(req, res);
     case 'userinfo':
+      console.log(`[${requestId}] ✅ Routing to handleUserInfo`);
       return await handleUserInfo(req, res);
     case 'introspect':
+      console.log(`[${requestId}] ✅ Routing to handleTokenIntrospection`);
       return await handleTokenIntrospection(req, res);
     default:
       console.log(`[${requestId}] ❌ Unknown OAuth endpoint: ${oauthEndpoint}`);
+      console.log(`[${requestId}] 🔍 Available endpoints: authorize, token, refresh, userinfo, introspect`);
       res.status(404).json({
         error: 'not_found',
-        error_description: `OAuth endpoint not found: ${oauthEndpoint}`
+        error_description: `OAuth endpoint not found: ${oauthEndpoint}. Available endpoints: authorize, token, refresh, userinfo, introspect`
       });
   }
 }

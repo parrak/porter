@@ -77,8 +77,7 @@ IMPORTANT:
                         content: prompt
                     }
                 ],
-                max_tokens: 200,
-                temperature: 0.1
+                max_tokens: 200
             },
             {
                 headers: {

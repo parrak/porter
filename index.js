@@ -31,10 +31,14 @@ module.exports = async (req, res) => {
       console.log(`🔌 API request received: ${method} ${url} -> ${apiPath}`);
       
       try {
-        // Dynamic import of API handlers
-        const handlerPath = path.join(__dirname, 'api', `${apiPath}.js`);
+        // Extract the base handler name (first path segment)
+        const pathSegments = apiPath.split('/');
+        const baseHandler = pathSegments[0]; // e.g., 'users' from 'users/a@b.com'
         
-        console.log(`📁 Looking for handler at: ${handlerPath}`);
+        // Dynamic import of API handlers
+        const handlerPath = path.join(__dirname, 'api', `${baseHandler}.js`);
+        
+        console.log(`📁 Looking for handler at: ${handlerPath} (base: ${baseHandler})`);
         
         if (fs.existsSync(handlerPath)) {
           console.log(`✅ Handler found, loading...`);
@@ -42,19 +46,19 @@ module.exports = async (req, res) => {
           
           // Check if it's a function or has a default export
           if (typeof handler === 'function') {
-            console.log(`🚀 Executing handler function for ${apiPath}`);
+            console.log(`🚀 Executing handler function for ${baseHandler}`);
             return await handler(req, res);
           } else if (handler.default && typeof handler.default === 'function') {
-            console.log(`🚀 Executing default handler function for ${apiPath}`);
+            console.log(`🚀 Executing default handler function for ${baseHandler}`);
             return await handler.default(req, res);
           } else {
-            console.log(`❌ Invalid handler type for ${apiPath}`);
+            console.log(`❌ Invalid handler type for ${baseHandler}`);
             res.status(500).send('Invalid API handler');
             return;
           }
         } else {
           console.log(`❌ Handler not found at: ${handlerPath}`);
-          res.status(404).send(`API endpoint not found: ${apiPath}`);
+          res.status(404).send(`API endpoint not found: ${baseHandler}`);
           return;
         }
       } catch (error) {
@@ -70,8 +74,10 @@ module.exports = async (req, res) => {
       const urlPath = url.split('?')[0];
       const oauthPath = urlPath.substring(7); // Remove '/oauth/' prefix
       
-      console.log(`🔐 OAuth request received: ${method} ${url} -> ${oauthPath}`);
+      console.log(`🔐 OAuth request received: ${method} ${url}`);
       console.log(`🔐 OAuth path without query: ${urlPath}`);
+      console.log(`🔐 OAuth endpoint: ${oauthPath}`);
+      console.log(`🔐 Query parameters:`, req.query);
       
       try {
         // Dynamic import of OAuth handlers
@@ -86,9 +92,15 @@ module.exports = async (req, res) => {
           // Check if it's a function or has a default export
           if (typeof handler === 'function') {
             console.log(`🚀 Executing OAuth handler function for ${oauthPath}`);
+            // Pass the full URL to the OAuth handler
+            req.originalUrl = url;
+            req.url = url;
             return await handler(req, res);
           } else if (handler.default && typeof handler.default === 'function') {
             console.log(`🚀 Executing default OAuth handler function for ${oauthPath}`);
+            // Pass the full URL to the OAuth handler
+            req.originalUrl = url;
+            req.url = url;
             return await handler.default(req, res);
           } else {
             console.log(`❌ Invalid OAuth handler type`);
