@@ -3,6 +3,7 @@ const { generateRequestId, logTelemetry } = require('../utils/common');
 const { executeQuery } = require('../database/connection');
 const { convertCurrency } = require('../utils/currency-converter');
 const { searchFlights } = require('../flight-search');
+const { storeFlightOffersInContext } = require('./get-flight-offers');
 
 module.exports = async (req, res) => {
   const requestId = generateRequestId();
@@ -210,10 +211,46 @@ module.exports = async (req, res) => {
       message: responseMessage,
       requestId,
       flights: enhancedFlights,
-      // Include complete Amadeus flight offers for booking
-      // Frontend should use flightOffers[flightIndex] when sending to book-flight endpoint
-      // This ensures all required Amadeus fields are preserved for successful booking
-      flightOffers: searchData.flightOffers || [],
+      // Store full flight offers in context for booking, return only essential data
+      // Frontend should use the bookingContextId to retrieve full offers when needed
+      flightOffers: searchData.flightOffers ? searchData.flightOffers.map(offer => ({
+        id: offer.id,
+        type: offer.type,
+        source: offer.source,
+        origin: offer.origin || offer.from,
+        destination: offer.destination || offer.to,
+        departureDate: offer.departureDate || offer.date,
+        returnDate: offer.returnDate,
+        price: offer.price,
+        validatingAirlineCodes: offer.validatingAirlineCodes,
+        numberOfBookableSeats: offer.numberOfBookableSeats,
+        // Include minimal itinerary data
+        itineraries: offer.itineraries ? offer.itineraries.map(itinerary => ({
+          duration: itinerary.duration,
+          segments: itinerary.segments ? itinerary.segments.map(segment => ({
+            id: segment.id,
+            departure: segment.departure,
+            arrival: segment.arrival,
+            carrierCode: segment.carrierCode,
+            number: segment.number
+          })) : []
+        })) : [],
+        // Include minimal traveler pricing data
+        travelerPricings: offer.travelerPricings ? offer.travelerPricings.map(pricing => ({
+          travelerId: pricing.travelerId,
+          fareOption: pricing.fareOption,
+          travelerType: pricing.travelerType,
+          price: pricing.price,
+          // Include minimal fare details
+          fareDetailsBySegment: pricing.fareDetailsBySegment ? pricing.fareDetailsBySegment.map(detail => ({
+            segmentId: detail.segmentId,
+            cabin: detail.cabin,
+            fareBasis: detail.fareBasis
+          })) : []
+        })) : []
+      })) : [],
+      // Context ID for retrieving full flight offers when booking
+      bookingContextId: searchData.flightOffers ? `ctx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : null,
       searchParams,
       dataSource: searchData.dataSource || 'unknown',
       searchDuration,
@@ -224,6 +261,17 @@ module.exports = async (req, res) => {
         averageRating: userProfile.average_trip_rating
       } : null
     };
+
+    // Store full flight offers in context for booking
+    if (response.bookingContextId && searchData.flightOffers) {
+      try {
+        storeFlightOffersInContext(response.bookingContextId, searchData.flightOffers);
+        console.log(`[${requestId}] 💾 Stored ${searchData.flightOffers.length} full flight offers in context: ${response.bookingContextId}`);
+      } catch (contextError) {
+        console.error(`[${requestId}] ⚠️ Failed to store flight offers in context:`, contextError);
+        // Don't fail the request, just log the warning
+      }
+    }
 
     console.log(`[${requestId}] ✅ Flight search completed in ${searchDuration}ms, found ${enhancedFlights.length} flights`);
     return res.status(200).json(response);
