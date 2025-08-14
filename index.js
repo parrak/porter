@@ -66,9 +66,12 @@ module.exports = async (req, res) => {
     
     // Handle OAuth routes
     if (url.startsWith('/oauth/')) {
-      const oauthPath = url.substring(7); // Remove '/oauth/' prefix
+      // Parse the URL to get the path without query parameters
+      const urlPath = url.split('?')[0];
+      const oauthPath = urlPath.substring(7); // Remove '/oauth/' prefix
       
       console.log(`🔐 OAuth request received: ${method} ${url} -> ${oauthPath}`);
+      console.log(`🔐 OAuth path without query: ${urlPath}`);
       
       try {
         // Dynamic import of OAuth handlers
