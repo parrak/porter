@@ -73,7 +73,11 @@ async function searchFlights(searchParams) {
             };
         });
 
-        return { flights, dataSource: 'amadeus' };
+        return { 
+            flights, 
+            flightOffers: response.data, // Return complete Amadeus flight offers
+            dataSource: 'amadeus' 
+        };
     } catch (error) {
         console.error('Error searching flights:', error);
         throw new Error('Failed to search flights. Please try again.');

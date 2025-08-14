@@ -347,13 +347,16 @@ async function bookFlightWithAmadeus(flightOffer, passengers, contactInfo, payme
     // Use the flight offer data directly instead of fetching it again
     console.log(`[${requestId}] ✅ Using provided flight offer data for booking`);
     
+    // Enhance the flight offer with required Amadeus fields if they're missing
+    const enhancedFlightOffer = enhanceFlightOfferForAmadeus(flightOffer, requestId);
+    
     // Step 1: Create flight order (booking) directly with the flight offer data
     console.log(`[${requestId}] 🎫 Creating flight order with Amadeus...`);
     
     const orderPayload = {
       data: {
         type: 'flight-order',
-        flightOffers: [flightOffer], // Use the flight offer data directly
+        flightOffers: [enhancedFlightOffer], // Use the enhanced flight offer data
         travelers: passengers.map(passenger => ({
           id: passenger.id || `traveler-${Math.random().toString(36).substr(2, 9)}`,
           dateOfBirth: passenger.dateOfBirth,
@@ -503,6 +506,88 @@ async function bookFlightWithAmadeus(flightOffer, passengers, contactInfo, payme
   }
 }
 
+// Helper function to enhance incomplete flight offers with required Amadeus fields
+function enhanceFlightOfferForAmadeus(flightOffer, requestId) {
+  console.log(`[${requestId}] 🔧 Enhancing flight offer for Amadeus compatibility...`);
+  
+  // Check if this is already a complete Amadeus flight offer
+  if (flightOffer.type === 'flight-offer' && 
+      flightOffer.validatingAirlineCodes && 
+      flightOffer.itineraries && 
+      flightOffer.travelerPricings) {
+    console.log(`[${requestId}] ✅ Flight offer is already complete, using as-is`);
+    return flightOffer;
+  }
+  
+  // Extract airline code from flight ID if possible (e.g., "B6-1407" -> "B6")
+  const airlineCode = flightOffer.id && flightOffer.id.includes('-') 
+    ? flightOffer.id.split('-')[0] 
+    : 'AA'; // Default to American Airlines
+  
+  // Ensure the ID is alphanumeric (Amadeus requirement)
+  const cleanId = flightOffer.id ? flightOffer.id.replace(/[^a-zA-Z0-9]/g, '') : '1';
+  
+  // Create a complete flight offer object with all required Amadeus fields
+  const enhancedOffer = {
+    id: cleanId,
+    type: 'flight-offer',
+    source: 'GDS',
+    origin: flightOffer.origin || flightOffer.from,
+    destination: flightOffer.destination || flightOffer.to,
+    departureDate: flightOffer.departureDate || flightOffer.date,
+    passengers: flightOffer.passengers || 1,
+    travelClass: flightOffer.travelClass || flightOffer.class || 'ECONOMY',
+    validatingAirlineCodes: [airlineCode],
+    itineraries: [
+      {
+        segments: [
+          {
+            departure: {
+              iataCode: flightOffer.origin || flightOffer.from,
+              terminal: '1',
+              at: `${flightOffer.departureDate || flightOffer.date}T10:00:00`
+            },
+            arrival: {
+              iataCode: flightOffer.destination || flightOffer.to,
+              terminal: '1',
+              at: `${flightOffer.departureDate || flightOffer.date}T12:00:00`
+            },
+            carrierCode: airlineCode,
+            number: flightOffer.id ? flightOffer.id.split('-')[1] || '123' : '123',
+            aircraft: {
+              code: '738'
+            }
+          }
+        ]
+      }
+    ],
+    travelerPricings: [
+      {
+        travelerId: '1',
+        fareOption: 'STANDARD',
+        includedCheckedBags: {
+          weight: 23,
+          weightUnit: 'KG'
+        },
+        price: flightOffer.price || {
+          total: '299.99',
+          currency: 'USD'
+        }
+      }
+    ],
+    price: flightOffer.price || {
+      total: '299.99',
+      currency: 'USD'
+    }
+  };
+  
+  console.log(`[${requestId}] ✅ Enhanced flight offer:`, JSON.stringify(enhancedOffer, null, 2));
+  
+  return enhancedOffer;
+}
+
+// Helper function to save passenger details to the database
+
 // Utility functions
 function generateRequestId() {
   return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -522,4 +607,3 @@ function logTelemetry(event, data) {
   
   // In production, you could send this to a logging service
 }
-

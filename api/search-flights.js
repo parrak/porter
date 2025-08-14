@@ -175,6 +175,10 @@ module.exports = async (req, res) => {
       message: responseMessage,
       requestId,
       flights: enhancedFlights,
+      // Include complete Amadeus flight offers for booking
+      // Frontend should use flightOffers[flightIndex] when sending to book-flight endpoint
+      // This ensures all required Amadeus fields are preserved for successful booking
+      flightOffers: searchData.flightOffers || [],
       searchParams,
       dataSource: searchData.dataSource || 'unknown',
       searchDuration,
