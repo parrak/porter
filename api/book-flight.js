@@ -376,7 +376,10 @@ async function bookFlightWithAmadeus(flightOffer, passengers, contactInfo, payme
             issuanceLocation: passenger.issuanceLocation || 'UNITED STATES',
             number: passenger.documentNumber,
             expiryDate: passenger.documentExpiryDate,
-            issuanceDate: passenger.issuanceDate || '2020-01-01'
+            issuanceDate: passenger.issuanceDate || '2020-01-01',
+            nationality: passenger.nationality || 'US',
+            issuanceCountry: passenger.issuanceCountry || 'US',
+            holder: true
           }]
         }))
       }

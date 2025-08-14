@@ -1100,12 +1100,49 @@ module.exports = async (req, res) => {
           // Get flight offer data for the booking
           const flightOffer = {
             id: bookingInfo.flightOfferId || '1',
+            type: 'flight-offer',
+            source: 'GDS',
             // Add basic flight information from the intent
             origin: flightIntent.from,
             destination: flightIntent.to,
             departureDate: flightIntent.date,
             passengers: flightIntent.passengers,
             travelClass: flightIntent.class.toUpperCase(),
+            // Add required Amadeus API fields
+            validatingAirlineCodes: ['AA'], // Default airline code
+            itineraries: [
+              {
+                segments: [
+                  {
+                    departure: {
+                      iataCode: flightIntent.from,
+                      terminal: '1',
+                      at: `${flightIntent.date}T10:00:00`
+                    },
+                    arrival: {
+                      iataCode: flightIntent.to,
+                      terminal: '1',
+                      at: `${flightIntent.date}T12:00:00`
+                    },
+                    carrierCode: 'AA',
+                    number: '123',
+                    aircraft: {
+                      code: '738'
+                    }
+                  }
+                ]
+              }
+            ],
+            travelerPricings: [
+              {
+                travelerId: '1',
+                fareOption: 'STANDARD',
+                includedCheckedBags: {
+                  weight: 23,
+                  weightUnit: 'KG'
+                }
+              }
+            ],
             // Add mock pricing for demo purposes
             price: {
               total: '299.99',
