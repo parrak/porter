@@ -30,12 +30,11 @@ module.exports = async (req, res) => {
 
     let userPreferences = null;
     let userProfile = null;
+    let actualUserId = user_id; // Create a separate variable for the actual user ID
 
     // Load user profile and preferences if user_id is provided
     if (user_id) {
       try {
-        let actualUserId = user_id;
-        
         // If user_id is an email address (string), look up the actual user ID first
         if (typeof user_id === 'string' && user_id.includes('@')) {
           const userResult = await executeQuery(`
@@ -74,9 +73,6 @@ module.exports = async (req, res) => {
             console.log(`[${requestId}] ✅ User profile loaded: ${userProfile.display_name || userProfile.email}`);
           }
         }
-        
-        // Update user_id to use the actual ID for database operations
-        user_id = actualUserId;
       } catch (error) {
         console.log(`[${requestId}] ⚠️ Could not load user profile: ${error.message}`);
         // Continue without profile data
@@ -140,13 +136,13 @@ module.exports = async (req, res) => {
     }));
 
     // Track this interaction if user is authenticated
-    if (user_id) {
+    if (actualUserId) {
       try {
         await executeQuery(`
           INSERT INTO user_interactions (user_id, interaction_type, interaction_data, search_query, search_results_count)
           VALUES ($1, 'direct_flight_search', $2, $3, $4)
         `, [
-          user_id, 
+          actualUserId, 
           JSON.stringify({ 
             origin, 
             destination, 
