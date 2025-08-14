@@ -151,24 +151,46 @@ module.exports = async (req, res) => {
     // Track this interaction if user is authenticated
     if (actualUserId) {
       try {
-        await executeQuery(`
-          INSERT INTO user_interactions (user_id, interaction_type, interaction_data, search_query, search_results_count)
-          VALUES ($1, 'direct_flight_search', $2, $3, $4)
-        `, [
-          actualUserId, 
-          JSON.stringify({ 
-            origin, 
-            destination, 
-            departureDate, 
-            returnDate, 
-            adults, 
-            travelClass,
-            searchDuration,
-            resultsCount: enhancedFlights.length
-          }), 
-          `${actualOrigin} to ${actualDestination} on ${actualDepartureDate}`,
-          enhancedFlights.length
-        ]);
+        // Use the database user ID if we have one, otherwise skip tracking
+        let userIdForTracking = null;
+        
+        if (typeof actualUserId === 'string' && actualUserId.includes('@')) {
+          // If it's an email, we need to look up the numeric ID
+          const userResult = await executeQuery(`
+            SELECT id FROM users WHERE email = $1
+          `, [actualUserId]);
+          
+          if (userResult.rows.length > 0) {
+            userIdForTracking = userResult.rows[0].id;
+          }
+        } else if (!isNaN(actualUserId)) {
+          // If it's already a numeric ID, use it directly
+          userIdForTracking = actualUserId;
+        }
+        
+        // Only track if we have a valid numeric user ID
+        if (userIdForTracking) {
+          await executeQuery(`
+            INSERT INTO user_interactions (user_id, interaction_type, interaction_data, search_query, search_results_count)
+            VALUES ($1, 'direct_flight_search', $2, $3, $4)
+          `, [
+            userIdForTracking, 
+            JSON.stringify({ 
+              origin: actualOrigin, 
+              destination: actualDestination, 
+              departureDate: actualDepartureDate, 
+              returnDate, 
+              adults: actualAdults, 
+              travelClass,
+              searchDuration,
+              resultsCount: enhancedFlights.length
+            }), 
+            `${actualOrigin} to ${actualDestination} on ${actualDepartureDate}`,
+            enhancedFlights.length
+          ]);
+          
+          console.log(`[${requestId}] ✅ Interaction tracked for user ID: ${userIdForTracking}`);
+        }
       } catch (error) {
         console.log(`[${requestId}] ⚠️ Could not track interaction: ${error.message}`);
       }
