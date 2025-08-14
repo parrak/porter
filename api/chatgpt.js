@@ -6,32 +6,28 @@ async function parseFlightIntentWithChatGPT(message) {
   console.log(`[${requestId}] 🚀 Starting ChatGPT intent parsing for message: "${message}"`);
   
   try {
-    // Use ChatGPT to parse the flight intent
-    const prompt = `You are a flight intent parser. Your task is to extract flight booking information and return ONLY a valid JSON object.
+    // Use ChatGPT to parse the flight intent - make prompt more explicit for GPT-5
+    const prompt = `Parse this flight request and return ONLY a JSON object. No explanations, no text, just JSON.
 
-CRITICAL: Return ONLY the JSON object, no explanations, no additional text, no markdown formatting.
+Input: "${message}"
 
-Expected JSON structure:
+Return this exact JSON structure:
 {
   "from": "airport_code",
   "to": "airport_code", 
   "date": "YYYY-MM-DD",
   "passengers": number,
-  "class": "economy|business|first"
+  "class": "economy"
 }
 
-Flight request: "${message}"
-
 Rules:
-- Convert city names to airport codes (e.g., "New York" → "JFK", "Los Angeles" → "LAX")
-- Parse dates in any format to YYYY-MM-DD
-- Default to economy class if not specified
-- Default to 1 passenger if not specified
-- Use today's date if no date specified
-- Return ONLY the JSON object, no other text or formatting
+- Convert cities to airport codes: "New York" → "JFK", "Los Angeles" → "LAX", "Chicago" → "ORD", "San Francisco" → "SFO"
+- Parse dates to YYYY-MM-DD format
+- Default: 1 passenger, economy class
+- If no date given, use a future date (not today)
 
-Example output:
-{"from":"JFK","to":"LAX","date":"2024-12-15","passengers":1,"class":"economy"}`;
+Example: "Find me a flight from New York to Los Angeles on September 20th"
+Output: {"from":"JFK","to":"LAX","date":"2025-09-20","passengers":1,"class":"economy"}`;
 
     console.log(`[${requestId}] 📤 Sending request to OpenAI API...`);
     console.log(`[${requestId}] 📝 Prompt: ${prompt.substring(0, 100)}...`);
@@ -43,20 +39,20 @@ Example output:
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
       },
-              body: JSON.stringify({
-          model: 'gpt-5',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a flight intent parser. Return only valid JSON.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          max_completion_tokens: 150
-        })
+      body: JSON.stringify({
+        model: 'gpt-5',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a flight intent parser. You must return ONLY valid JSON. No explanations, no markdown, no additional text.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_completion_tokens: 150
+      })
     });
 
     const openaiEndTime = Date.now();
@@ -78,6 +74,13 @@ Example output:
     const content = data.choices[0].message.content.trim();
     console.log(`[${requestId}] 📄 Raw ChatGPT response: ${content}`);
     console.log(`[${requestId}] 📏 Response length: ${content.length} characters`);
+    
+    // Check if response is empty - this is the main issue
+    if (!content || content.length === 0) {
+      console.error(`[${requestId}] ❌ GPT-5 returned empty response - this indicates a model issue`);
+      throw new Error('GPT-5 returned empty response - model may be having issues');
+    }
+    
     console.log(`[${requestId}] 🔍 First 100 chars: "${content.substring(0, 100)}"`);
     console.log(`[${requestId}] 🔍 Last 100 chars: "${content.substring(Math.max(0, content.length - 100))}"`);
     console.log(`[${requestId}] 🔍 Contains { at position: ${content.indexOf('{')}`);
@@ -180,7 +183,7 @@ Example output:
   }
 }
 
-// Fallback intent parser (simplified version of the original)
+// Fallback intent parser (improved version)
 function parseFlightIntentFallback(message) {
   const requestId = generateRequestId();
   console.log(`[${requestId}] 🔄 Using fallback intent parser for message: "${message}"`);
@@ -190,42 +193,127 @@ function parseFlightIntentFallback(message) {
   try {
     const lowerMessage = message.toLowerCase();
     
-    // Extract airport codes (simple pattern matching)
-    const airportPattern = /(?:from|departing|leaving)\s+([A-Z]{3})/i;
-    const toPattern = /(?:to|arriving|going to)\s+([A-Z]{3})/i;
+    // Improved city to airport code mapping
+    const cityToAirport = {
+      'new york': 'JFK',
+      'los angeles': 'LAX', 
+      'chicago': 'ORD',
+      'san francisco': 'SFO',
+      'miami': 'MIA',
+      'atlanta': 'ATL',
+      'dallas': 'DFW',
+      'denver': 'DEN',
+      'seattle': 'SEA',
+      'boston': 'BOS',
+      'phoenix': 'PHX',
+      'las vegas': 'LAS',
+      'orlando': 'MCO',
+      'charlotte': 'CLT',
+      'detroit': 'DTW',
+      'minneapolis': 'MSP',
+      'philadelphia': 'PHL',
+      'houston': 'IAH',
+      'fort lauderdale': 'FLL',
+      'baltimore': 'BWI'
+    };
     
-    const fromMatch = message.match(airportPattern);
-    const toMatch = message.match(toPattern);
+    // Extract origin and destination with better pattern matching
+    let from = 'JFK'; // Default
+    let to = 'LAX';   // Default
     
-    let from = fromMatch ? fromMatch[1].toUpperCase() : "JFK";
-    let to = toMatch ? toMatch[1].toUpperCase() : "LAX";
+    // Look for city names first, then airport codes
+    for (const [city, airport] of Object.entries(cityToAirport)) {
+      if (lowerMessage.includes(city)) {
+        if (lowerMessage.indexOf(city) < lowerMessage.indexOf('to') || lowerMessage.indexOf(city) < lowerMessage.indexOf('los angeles')) {
+          from = airport;
+        } else {
+          to = airport;
+        }
+      }
+    }
     
-    // Extract date patterns
+    // Also look for airport codes
+    const airportCodePattern = /\b([A-Z]{3})\b/g;
+    const airportCodes = message.match(airportCodePattern);
+    if (airportCodes && airportCodes.length >= 2) {
+      from = airportCodes[0];
+      to = airportCodes[1];
+    }
+    
+    // Improved date parsing
+    let date = new Date();
+    
+    // Look for specific date patterns
     const datePatterns = [
-      /(?:on|for)\s+(\d{1,2}\/\d{1,2}\/\d{4})/i,
-      /(?:on|for)\s+(\d{4}-\d{2}-\d{2})/i,
-      /(?:on|for)\s+(tomorrow)/i,
-      /(?:on|for)\s+(next week)/i
+      // Month names
+      /(?:on|for)\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(?:st|nd|rd|th)?/i,
+      // Numeric dates
+      /(?:on|for)\s+(\d{1,2})\/(\d{1,2})\/(\d{4})/i,
+      // ISO dates
+      /(?:on|for)\s+(\d{4})-(\d{2})-(\d{2})/i,
+      // Relative dates
+      /(?:on|for)\s+(tomorrow|next week|next month)/i
     ];
     
-    let date = new Date().toISOString().split('T')[0]; // Today
+    let dateFound = false;
     for (const pattern of datePatterns) {
       const match = message.match(pattern);
       if (match) {
         if (match[1] === "tomorrow") {
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          date = tomorrow.toISOString().split('T')[0];
+          date.setDate(date.getDate() + 1);
+          dateFound = true;
         } else if (match[1] === "next week") {
-          const nextWeek = new Date();
-          nextWeek.setDate(nextWeek.getDate() + 7);
-          date = nextWeek.toISOString().split('T')[0];
-        } else {
-          date = match[1];
+          date.setDate(date.getDate() + 7);
+          dateFound = true;
+        } else if (match[1] === "next month") {
+          date.setMonth(date.getMonth() + 1);
+          dateFound = true;
+        } else if (pattern.source.includes('january|february')) {
+          // Month name pattern
+          const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+          const monthIndex = monthNames.indexOf(match[1].toLowerCase());
+          const day = parseInt(match[2]);
+          const year = date.getFullYear();
+          
+          // If the month has passed this year, use next year
+          if (monthIndex < date.getMonth() || (monthIndex === date.getMonth() && day <= date.getDate())) {
+            date.setFullYear(year + 1);
+          }
+          
+          date.setMonth(monthIndex);
+          date.setDate(day);
+          dateFound = true;
+        } else if (pattern.source.includes('\\d{1,2}\\/\\d{1,2}')) {
+          // Numeric date pattern
+          const month = parseInt(match[1]) - 1; // Month is 0-indexed
+          const day = parseInt(match[2]);
+          const year = parseInt(match[3]);
+          
+          date.setFullYear(year);
+          date.setMonth(month);
+          date.setDate(day);
+          dateFound = true;
+        } else if (pattern.source.includes('\\d{4}-\\d{2}')) {
+          // ISO date pattern
+          const year = parseInt(match[1]);
+          const month = parseInt(match[2]) - 1;
+          const day = parseInt(match[3]);
+          
+          date.setFullYear(year);
+          date.setMonth(month);
+          date.setDate(day);
+          dateFound = true;
         }
         break;
       }
     }
+    
+    // If no specific date found, use a future date (not today)
+    if (!dateFound) {
+      date.setDate(date.getDate() + 7); // Default to next week
+    }
+    
+    const dateString = date.toISOString().split('T')[0];
     
     // Extract passenger count
     const passengerPattern = /(\d+)\s+(?:passenger|person|people)/i;
@@ -237,7 +325,7 @@ function parseFlightIntentFallback(message) {
     if (lowerMessage.includes("business")) travelClass = "business";
     if (lowerMessage.includes("first")) travelClass = "first";
     
-    const intent = { from, to, date, passengers, class: travelClass };
+    const intent = { from, to, date: dateString, passengers, class: travelClass };
     const duration = Date.now() - startTime;
     
     console.log(`[${requestId}] ✅ Fallback parser completed in ${duration}ms: ${JSON.stringify(intent)}`);
@@ -263,8 +351,16 @@ function parseFlightIntentFallback(message) {
       error: error.message
     });
     
-    // Return default values as last resort
-    return { from: "JFK", to: "LAX", date: new Date().toISOString().split('T')[0], passengers: 1, class: "economy" };
+    // Return default values as last resort - use correct parameter names
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() + 7); // Next week
+    return { 
+      origin: "JFK", 
+      destination: "LAX", 
+      departureDate: defaultDate.toISOString().split('T')[0], 
+      adults: 1, 
+      travelClass: "economy" 
+    };
   }
 }
 
@@ -1182,13 +1278,13 @@ module.exports = async (req, res) => {
       // Call the search-flights endpoint with the parsed intent
       const searchStartTime = Date.now();
       
-      // Prepare search parameters
+      // Prepare search parameters - ensure compatibility with search-flights API
       const searchParams = {
-        origin: flightIntent.from,
-        destination: flightIntent.to,
-        departureDate: flightIntent.date,
-        adults: flightIntent.passengers,
-        travelClass: flightIntent.class.toUpperCase(),
+        origin: flightIntent.from || flightIntent.origin,
+        destination: flightIntent.to || flightIntent.destination,
+        departureDate: flightIntent.date || flightIntent.departureDate,
+        adults: flightIntent.passengers || flightIntent.adults || 1,
+        travelClass: (flightIntent.class || flightIntent.travelClass || 'economy').toUpperCase(),
         user_id: userId || 'anonymous'
       };
       
