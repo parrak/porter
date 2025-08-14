@@ -64,6 +64,46 @@ module.exports = async (req, res) => {
       }
     }
     
+    // Handle OAuth routes
+    if (url.startsWith('/oauth/')) {
+      const oauthPath = url.substring(7); // Remove '/oauth/' prefix
+      
+      console.log(`🔐 OAuth request received: ${method} ${url} -> ${oauthPath}`);
+      
+      try {
+        // Dynamic import of OAuth handlers
+        const handlerPath = path.join(__dirname, 'api', 'oauth.js');
+        
+        console.log(`📁 Looking for OAuth handler at: ${handlerPath}`);
+        
+        if (fs.existsSync(handlerPath)) {
+          console.log(`✅ OAuth handler found, loading...`);
+          const handler = require(handlerPath);
+          
+          // Check if it's a function or has a default export
+          if (typeof handler === 'function') {
+            console.log(`🚀 Executing OAuth handler function for ${oauthPath}`);
+            return await handler(req, res);
+          } else if (handler.default && typeof handler.default === 'function') {
+            console.log(`🚀 Executing default OAuth handler function for ${oauthPath}`);
+            return await handler.default(req, res);
+          } else {
+            console.log(`❌ Invalid OAuth handler type`);
+            res.status(500).send('Invalid OAuth handler');
+            return;
+          }
+        } else {
+          console.log(`❌ OAuth handler not found at: ${handlerPath}`);
+          res.status(404).send(`OAuth handler not found`);
+          return;
+        }
+      } catch (error) {
+        console.error(`❌ Error handling OAuth request to ${oauthPath}:`, error);
+        res.status(500).send('Internal Server Error');
+        return;
+      }
+    }
+    
     // Handle OpenAPI specification
     if (url === '/openapi.json') {
       try {
