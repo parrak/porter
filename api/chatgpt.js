@@ -115,9 +115,10 @@ Output: {"origin":"JFK","destination":"LAX","date":"2025-09-20","passengers":1,"
     
     // Parse the JSON response
     let intent;
+    let cleanContent; // Declare outside try block for error logging
     try {
       // Clean the content to handle markdown formatting
-      let cleanContent = content.trim();
+      cleanContent = content.trim();
       
       // Remove markdown code blocks if present
       if (cleanContent.startsWith('```json')) {
