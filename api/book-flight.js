@@ -102,7 +102,7 @@ module.exports = async (req, res) => {
 
   try {
     const { 
-      flightOfferId, 
+      flightOffer, // Accept complete flight offer data instead of just ID
       passengers, 
       contactInfo, 
       paymentInfo, 
@@ -112,17 +112,17 @@ module.exports = async (req, res) => {
     } = req.body;
     
     console.log(`[${requestId}] 👤 User ID: ${userId || 'anonymous'}`);
-    console.log(`[${requestId}] 🎫 Booking flight offer: ${flightOfferId}`);
+    console.log(`[${requestId}] 🎫 Booking flight offer: ${flightOffer?.id || 'unknown'}`);
     
     // Validate required parameters
-    if (!flightOfferId || !passengers || !contactInfo) {
-      console.log(`[${requestId}] ❌ Missing required parameters: flightOfferId=${flightOfferId}, passengers=${!!passengers}, contactInfo=${!!contactInfo}`);
+    if (!flightOffer || !passengers || !contactInfo) {
+      console.log(`[${requestId}] ❌ Missing required parameters: flightOffer=${!!flightOffer}, passengers=${!!passengers}, contactInfo=${!!contactInfo}`);
       return res.status(400).json({ 
         error: 'Missing required parameters',
-        message: 'flightOfferId, passengers, and contactInfo are required',
-        required: ['flightOfferId', 'passengers', 'contactInfo'],
+        message: 'flightOffer, passengers, and contactInfo are required',
+        required: ['flightOffer', 'passengers', 'contactInfo'],
         received: {
-          flightOfferId: !!flightOfferId,
+          flightOffer: !!flightOffer,
           passengers: !!passengers,
           contactInfo: !!contactInfo
         }
@@ -165,7 +165,7 @@ module.exports = async (req, res) => {
     // Log booking attempt
     logTelemetry('flight_booking_attempt', {
       requestId,
-      flightOfferId,
+      flightOfferId: flightOffer?.id || 'unknown',
       passengerCount: passengers.length,
       hasPaymentInfo: !!paymentInfo,
       userId: userId || 'anonymous',
@@ -180,7 +180,7 @@ module.exports = async (req, res) => {
       try {
         const amadeusStartTime = Date.now();
         const bookingResult = await bookFlightWithAmadeus(
-          flightOfferId, 
+          flightOffer, 
           passengers, 
           contactInfo, 
           paymentInfo, 
@@ -195,7 +195,7 @@ module.exports = async (req, res) => {
           requestId,
           success: true,
           duration: amadeusDuration,
-          flightOfferId,
+          flightOfferId: flightOffer?.id || 'unknown',
           passengerCount: passengers.length,
           bookingReference: bookingResult.bookingReference,
           userId: userId || 'anonymous'
@@ -229,7 +229,7 @@ module.exports = async (req, res) => {
           requestId,
           success: false,
           error: amadeusError.message,
-          flightOfferId,
+          flightOfferId: flightOffer?.id || 'unknown',
           passengerCount: passengers.length,
           userId: userId || 'anonymous'
         });
@@ -253,14 +253,16 @@ module.exports = async (req, res) => {
         status: 'confirmed',
         confirmationNumber: mockBookingReference,
         bookingDate: new Date().toISOString(),
-        totalPrice: searchParams?.price || '$299',
-        currency: 'USD',
+        totalPrice: flightOffer?.price || searchParams?.price || '$299',
+        currency: flightOffer?.currency || 'USD',
         flightDetails: {
-          from: searchParams?.from || 'JFK',
-          to: searchParams?.to || 'LAX',
-          date: searchParams?.date || new Date().toISOString().split('T')[0],
-          airline: 'Mock Airlines',
-          flightNumber: 'MA123'
+          from: flightOffer?.from || searchParams?.from || 'JFK',
+          to: flightOffer?.to || searchParams?.to || 'LAX',
+          date: flightOffer?.departureDate || searchParams?.date || new Date().toISOString().split('T')[0],
+          airline: flightOffer?.airline || 'Mock Airlines',
+          flightNumber: flightOffer?.flightNumber || 'MA123',
+          duration: flightOffer?.duration || '5h 30m',
+          stops: flightOffer?.stops || 0
         }
       },
       passengers: passengers,
@@ -285,7 +287,7 @@ module.exports = async (req, res) => {
       requestId,
       success: true,
       duration: totalDuration,
-      flightOfferId,
+      flightOfferId: flightOffer?.id || 'unknown',
       passengerCount: passengers.length,
       dataSource: 'mock_booking',
       userId: userId || 'anonymous'
@@ -315,7 +317,7 @@ module.exports = async (req, res) => {
 };
 
 // Amadeus flight booking function
-async function bookFlightWithAmadeus(flightOfferId, passengers, contactInfo, paymentInfo, requestId) {
+async function bookFlightWithAmadeus(flightOffer, passengers, contactInfo, paymentInfo, requestId) {
   const { convertCurrency } = require('../utils/currency-converter');
   console.log(`[${requestId}] 🔑 Getting Amadeus access token...`);
   
@@ -342,33 +344,16 @@ async function bookFlightWithAmadeus(flightOfferId, passengers, contactInfo, pay
     const tokenData = await tokenResponse.json();
     console.log(`[${requestId}] ✅ Amadeus access token obtained successfully`);
     
-    // Step 1: First fetch the flight offer data
-    console.log(`[${requestId}] 🔍 Fetching flight offer data from Amadeus...`);
+    // Use the flight offer data directly instead of fetching it again
+    console.log(`[${requestId}] ✅ Using provided flight offer data for booking`);
     
-    const flightOfferResponse = await fetch(`https://test.api.amadeus.com/v2/shopping/flight-offers/${flightOfferId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${tokenData.access_token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!flightOfferResponse.ok) {
-      const errorText = await flightOfferResponse.text();
-      console.error(`[${requestId}] ❌ Failed to fetch flight offer: ${flightOfferResponse.status} - ${errorText}`);
-      throw new Error(`Failed to fetch flight offer: ${flightOfferResponse.status}`);
-    }
-
-    const flightOfferData = await flightOfferResponse.json();
-    console.log(`[${requestId}] ✅ Flight offer data retrieved successfully`);
-    
-    // Step 2: Create flight order (booking)
+    // Step 1: Create flight order (booking) directly with the flight offer data
     console.log(`[${requestId}] 🎫 Creating flight order with Amadeus...`);
     
     const orderPayload = {
       data: {
         type: 'flight-order',
-        flightOffers: [flightOfferData.data],
+        flightOffers: [flightOffer], // Use the flight offer data directly
         travelers: passengers.map(passenger => ({
           id: passenger.id || `traveler-${Math.random().toString(36).substr(2, 9)}`,
           dateOfBirth: passenger.dateOfBirth,
