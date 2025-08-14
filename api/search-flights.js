@@ -1,4 +1,9 @@
 // Enhanced flight search with user profile integration
+const { generateRequestId, logTelemetry } = require('../utils/common');
+const { executeQuery } = require('../database/connection');
+const { convertCurrency } = require('../utils/currency-converter');
+const { searchFlights } = require('../flight-search');
+
 module.exports = async (req, res) => {
   const requestId = generateRequestId();
   
