@@ -1,13 +1,19 @@
 const { Pool } = require('pg');
 
-// Database configuration
+// Database configuration - supports both local and Vercel Postgres
 const dbConfig = {
+  // For Vercel Postgres (production)
+  connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
+  
+  // For local development (fallback)
   user: process.env.DB_USER || 'postgres',
   host: process.env.DB_HOST || 'localhost',
   database: process.env.DB_NAME || 'porter_travel',
   password: process.env.DB_PASSWORD || 'password',
   port: process.env.DB_PORT || 5432,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  
+  // SSL configuration
+  ssl: process.env.NODE_ENV === 'production' || process.env.POSTGRES_URL ? { rejectUnauthorized: false } : false,
   
   // Connection pool settings
   max: 20, // Maximum number of clients in the pool
