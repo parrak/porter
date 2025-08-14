@@ -1,510 +1,362 @@
-// Flight Search API endpoint for Vercel
+// Enhanced flight search with user profile integration
 module.exports = async (req, res) => {
   const requestId = generateRequestId();
-  const startTime = Date.now();
   
-  console.log(`[${requestId}] 🌐 Flight search request received: ${req.method} ${req.url}`);
-  console.log(`[${requestId}] 📋 Request headers: ${JSON.stringify(req.headers)}`);
-  
-  // Set CORS headers to allow all origins
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', '*');
-  res.setHeader('Access-Control-Max-Age', '86400');
-  
-  // Handle preflight OPTIONS request
-  if (req.method === 'OPTIONS') {
-    console.log(`[${requestId}] ✅ Preflight OPTIONS request handled`);
-    res.status(200).end();
-    return;
-  }
-  
-  if (req.method !== 'POST') {
-    console.log(`[${requestId}] ❌ Method not allowed: ${req.method}`);
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  // No authentication required for flight search
-  console.log(`[${requestId}] 🔓 Flight search request - no authentication required`);
-
   try {
-    const { from, to, date, passengers = 1, travelClass = 'ECONOMY', userId } = req.body;
-    
-    console.log(`[${requestId}] 👤 User ID: ${userId || 'anonymous'}`);
-    console.log(`[${requestId}] 🔍 Search parameters: from=${from}, to=${to}, date=${date}, passengers=${passengers}, class=${travelClass}`);
-    
-    if (!from || !to || !date) {
-      console.log(`[${requestId}] ❌ Missing required parameters: from=${from}, to=${to}, date=${date}`);
-      return res.status(400).json({ error: 'from, to, and date are required' });
-    }
+    const { 
+      origin, 
+      destination, 
+      departureDate, 
+      returnDate, 
+      adults, 
+      travelClass,
+      user_id // New parameter for user identification
+    } = req.body;
 
-    // Validate date format and check if it's in the past
-    let parsedDate;
-    try {
-      // Try to parse the date string
-      parsedDate = new Date(date);
-      
-      // Check if the date is valid
-      if (isNaN(parsedDate.getTime())) {
-        console.log(`[${requestId}] ❌ Invalid date format: ${date}`);
-        return res.status(400).json({ 
-          error: 'Invalid date format',
-          message: 'Please provide a valid date in YYYY-MM-DD format (e.g., 2025-01-15)',
-          receivedDate: date,
-          examples: ['2025-01-15', '2025-12-25', '2026-06-10']
-        });
-      }
-      
-      // Check if the date is in the past
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Start of today
-      
-      if (parsedDate < today) {
-        console.log(`[${requestId}] ❌ Date is in the past: ${date} (today is ${today.toISOString().split('T')[0]})`);
-        
-        // Generate helpful date suggestions
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        
-        const nextWeek = new Date(today);
-        nextWeek.setDate(nextWeek.getDate() + 7);
-        
-        const nextMonth = new Date(today);
-        nextMonth.setMonth(nextMonth.getMonth() + 1);
-        
-        return res.status(400).json({ 
-          error: 'Date cannot be in the past',
-          message: 'Please select a future date for your flight search',
-          receivedDate: date,
-          today: today.toISOString().split('T')[0],
-          suggestions: [
-            'Try searching for tomorrow or later dates',
-            'Use format: YYYY-MM-DD (e.g., 2025-01-15)',
-            'Check that you\'re using the correct year'
-          ],
-          suggestedDates: [
-            tomorrow.toISOString().split('T')[0],
-            nextWeek.toISOString().split('T')[0],
-            nextMonth.toISOString().split('T')[0]
-          ],
-          note: 'Suggested dates are automatically calculated from today'
-        });
-      }
-      
-      // Check if the date is too far in the future (Amadeus typically allows up to 1 year)
-      const oneYearFromNow = new Date();
-      oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
-      
-      if (parsedDate > oneYearFromNow) {
-        console.log(`[${requestId}] ⚠️ Date is very far in the future: ${date}`);
-        // Don't fail, but log a warning
-        console.log(`[${requestId}] ⚠️ Date ${date} is more than 1 year away - Amadeus API may not support this`);
-      }
-      
-      console.log(`[${requestId}] ✅ Date validation passed: ${date} (${parsedDate.toISOString().split('T')[0]})`);
-      
-    } catch (dateError) {
-      console.error(`[${requestId}] ❌ Date parsing error:`, dateError);
-      return res.status(400).json({ 
-        error: 'Date parsing failed',
-        message: 'Unable to parse the provided date. Please use YYYY-MM-DD format.',
-        receivedDate: date,
-        examples: ['2025-01-15', '2025-12-25', '2026-06-10']
+    console.log(`[${requestId}] 🚀 Flight search request: ${origin} → ${destination} on ${departureDate} for user: ${user_id || 'anonymous'}`);
+
+    // Validate required parameters
+    if (!origin || !destination || !departureDate) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameters: origin, destination, departureDate'
       });
     }
 
-    // Log search attempt
-    logTelemetry('flight_search_attempt', {
-      requestId,
-      searchParams: { from, to, date, passengers, travelClass },
-      userId: userId || 'anonymous'
-    });
+    let userPreferences = null;
+    let userProfile = null;
 
-    // Check if we should use Amadeus API for real flight data
-    if (process.env.AMADEUS_CLIENT_ID && process.env.AMADEUS_CLIENT_SECRET) {
-      console.log(`[${requestId}] 🚀 Attempting real flight search via Amadeus API...`);
-      
+    // Load user profile and preferences if user_id is provided
+    if (user_id) {
       try {
-        const amadeusStartTime = Date.now();
-        const realFlights = await searchAmadeusFlights(from, to, date, passengers, travelClass, requestId);
-        const amadeusDuration = Date.now() - amadeusStartTime;
+        // Get user profile
+        const profileResult = await executeQuery(`
+          SELECT * FROM user_profile_summary WHERE id = $1
+        `, [user_id]);
         
-        console.log(`[${requestId}] ✅ Amadeus API search completed in ${amadeusDuration}ms`);
-        
-        // Log successful Amadeus search
-        logTelemetry('amadeus_search_success', {
-          requestId,
-          success: true,
-          duration: amadeusDuration,
-          searchParams: { from, to, date, passengers, travelClass },
-          flightsFound: realFlights.length,
-          userId: userId || 'anonymous'
-        });
-        
-        const response = {
-          success: true,
-          searchParams: { from, to, date, passengers, travelClass },
-          flightsFound: realFlights.length,
-          flights: realFlights,
-          message: `Found ${realFlights.length} real flights from ${from} to ${to} on ${date}`,
-          requestId,
-          dataSource: 'amadeus_api'
-        };
-        
-        const totalDuration = Date.now() - startTime;
-        console.log(`[${requestId}] 🎉 Flight search completed successfully in ${totalDuration}ms (Amadeus)`);
-        
-        res.status(200).json(response);
-        return;
-        
-      } catch (amadeusError) {
-        console.error(`[${requestId}] ❌ Amadeus API search failed:`, amadeusError);
-        
-        // Check if this is a user-friendly error that we should return directly
-        if (amadeusError.statusCode === 400 && amadeusError.userFriendlyMessage) {
-          console.log(`[${requestId}] 📝 Returning user-friendly error: ${amadeusError.userFriendlyMessage}`);
+        if (profileResult.rows.length > 0) {
+          userProfile = profileResult.rows[0];
           
-          // Log Amadeus error telemetry
-          logTelemetry('amadeus_search_error', {
-            requestId,
-            success: false,
-            error: amadeusError.message,
-            errorCode: amadeusError.errorCode,
-            userFriendlyMessage: amadeusError.userFriendlyMessage,
-            searchParams: { from, to, date, passengers, travelClass },
-            userId: userId || 'anonymous'
-          });
+          // Get user preferences
+          const preferencesResult = await executeQuery(`
+            SELECT category, preferences FROM user_preferences WHERE user_id = $1
+          `, [user_id]);
           
-          // Return the user-friendly error instead of falling back to mock data
-          return res.status(400).json({
-            error: 'Flight search failed',
-            message: amadeusError.userFriendlyMessage,
-            suggestions: amadeusError.suggestions || [],
-            requestId,
-            errorCode: amadeusError.errorCode,
-            searchParams: { from, to, date, passengers, travelClass }
-          });
+          userPreferences = preferencesResult.rows.reduce((acc, row) => {
+            acc[row.category] = row.preferences;
+            return acc;
+          }, {});
+          
+          console.log(`[${requestId}] ✅ User profile loaded: ${userProfile.display_name || userProfile.email}`);
         }
-        
-        // Log Amadeus error telemetry
-        logTelemetry('amadeus_search_error', {
-          requestId,
-          success: false,
-          error: amadeusError.message,
-          searchParams: { from, to, date, passengers, travelClass },
-          userId: userId || 'anonymous'
-        });
-        
-        console.log(`[${requestId}] 🔄 Falling back to mock flight data...`);
+      } catch (error) {
+        console.log(`[${requestId}] ⚠️ Could not load user profile: ${error.message}`);
+        // Continue without profile data
       }
-    } else {
-      console.log(`[${requestId}] ⚠️ Amadeus credentials not configured, using mock data`);
     }
 
-    // Mock flight search response (fallback)
-    console.log(`[${requestId}] 🎭 Generating mock flight data...`);
-    
-    const mockFlights = [
-      {
-        flightNumber: 123,
-        route: `${from} → ${to}`,
-        time: "10:00 AM - 11:30 AM",
-        stops: "Direct",
-        price: "$299",
-        seats: 4,
-        airline: "Mock Airlines",
-        class: travelClass
-      },
-      {
-        flightNumber: 456,
-        route: `${from} → ${to}`,
-        time: "2:00 PM - 3:30 PM", 
-        stops: "1 stop",
-        price: "$249",
-        seats: 2,
-        airline: "Mock Airlines",
-        class: travelClass
+    // Build search parameters
+    const searchParams = {
+      originLocationCode: origin,
+      destinationLocationCode: destination,
+      departureDate: departureDate,
+      returnDate: returnDate,
+      adults: adults || 1,
+      travelClass: travelClass || 'ECONOMY',
+      max: 50
+    };
+
+    // Apply user preferences to search parameters
+    if (userPreferences) {
+      const enhancedParams = applyUserPreferencesToSearch(searchParams, userPreferences);
+      Object.assign(searchParams, enhancedParams);
+      console.log(`[${requestId}] 🎯 Enhanced search params with user preferences:`, enhancedParams);
+    }
+
+    // Perform flight search
+    const searchStartTime = Date.now();
+    const searchData = await searchFlights(searchParams);
+    const searchDuration = Date.now() - searchStartTime;
+
+    // Personalize results based on user preferences
+    let personalizedFlights = searchData.flights || [];
+    if (userPreferences && personalizedFlights.length > 0) {
+      personalizedFlights = personalizeFlightResults(personalizedFlights, userPreferences);
+    }
+
+    // Convert prices to USD and add personalization info
+    const enhancedFlights = await Promise.all(personalizedFlights.map(async (flight) => {
+      let convertedPrice = flight.price;
+      let originalPrice = flight.price;
+      let originalCurrency = flight.currency || 'EUR';
+      let exchangeRate = 1;
+
+      // Convert price if it's in EUR
+      if (originalCurrency === 'EUR') {
+        try {
+          convertedPrice = await convertCurrency(flight.price, 'EUR', 'USD');
+          exchangeRate = convertedPrice / flight.price;
+        } catch (error) {
+          console.log(`[${requestId}] ⚠️ Currency conversion failed: ${error.message}`);
+        }
       }
-    ];
+
+      return {
+        ...flight,
+        price: convertedPrice,
+        originalPrice,
+        originalCurrency,
+        exchangeRate,
+        currency: 'USD'
+      };
+    }));
+
+    // Track this interaction if user is authenticated
+    if (user_id) {
+      try {
+        await executeQuery(`
+          INSERT INTO user_interactions (user_id, interaction_type, interaction_data, search_query, search_results_count)
+          VALUES ($1, 'direct_flight_search', $2, $3, $4)
+        `, [
+          user_id, 
+          JSON.stringify({ 
+            origin, 
+            destination, 
+            departureDate, 
+            returnDate, 
+            adults, 
+            travelClass,
+            searchDuration,
+            resultsCount: enhancedFlights.length
+          }), 
+          `${origin} to ${destination} on ${departureDate}`,
+          enhancedFlights.length
+        ]);
+      } catch (error) {
+        console.log(`[${requestId}] ⚠️ Could not track interaction: ${error.message}`);
+      }
+    }
+
+    // Generate personalized response message
+    const responseMessage = generatePersonalizedResponse(
+      origin, 
+      destination, 
+      enhancedFlights, 
+      userProfile, 
+      userPreferences
+    );
 
     const response = {
       success: true,
-      searchParams: { from, to, date, passengers, travelClass },
-      flightsFound: mockFlights.length,
-      flights: mockFlights,
-      message: `Found ${mockFlights.length} flights from ${from} to ${to} on ${date}`,
+      message: responseMessage,
       requestId,
-      dataSource: 'mock_data'
+      flights: enhancedFlights,
+      searchParams,
+      dataSource: searchData.dataSource || 'unknown',
+      searchDuration,
+      userProfile: userProfile ? {
+        displayName: userProfile.display_name,
+        preferences: userPreferences,
+        totalTrips: userProfile.total_trips,
+        averageRating: userProfile.average_trip_rating
+      } : null
     };
 
-    const totalDuration = Date.now() - startTime;
-    console.log(`[${requestId}] 🎉 Flight search completed successfully in ${totalDuration}ms (Mock)`);
-    
-    // Log successful mock search
-    logTelemetry('flight_search_success', {
-      requestId,
-      success: true,
-      duration: totalDuration,
-      searchParams: { from, to, date, passengers, travelClass },
-      flightsFound: mockFlights.length,
-      dataSource: 'mock_data',
-      userId: userId || 'anonymous'
-    });
+    console.log(`[${requestId}] ✅ Flight search completed in ${searchDuration}ms, found ${enhancedFlights.length} flights`);
+    return res.status(200).json(response);
 
-    res.status(200).json(response);
   } catch (error) {
-    const totalDuration = Date.now() - startTime;
-    console.error(`[${requestId}] ❌ Flight search failed after ${totalDuration}ms:`, error);
-    
-    // Log error telemetry
-    logTelemetry('flight_search_error', {
-      requestId,
+    console.error(`[${requestId}] ❌ Flight search error:`, error);
+    return res.status(500).json({
       success: false,
-      duration: totalDuration,
-      error: error.message,
-      userId: req.body?.userId || 'anonymous'
-    });
-    
-    res.status(500).json({
-      error: 'Internal server error',
-      message: error.message,
-      requestId
+      error: 'Flight search failed',
+      details: error.message
     });
   }
 };
 
-// Amadeus flight search function
-async function searchAmadeusFlights(from, to, date, passengers, travelClass, requestId) {
-  console.log(`[${requestId}] 🔑 Getting Amadeus access token...`);
+// Apply user preferences to search parameters
+function applyUserPreferencesToSearch(searchParams, userPreferences) {
+  const enhanced = {};
   
-  try {
-    // Get Amadeus access token
-    const tokenResponse = await fetch('https://test.api.amadeus.com/v1/security/oauth2/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: new URLSearchParams({
-        grant_type: 'client_credentials',
-        client_id: process.env.AMADEUS_CLIENT_ID,
-        client_secret: process.env.AMADEUS_CLIENT_SECRET
-      })
-    });
-
-    if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      console.error(`[${requestId}] ❌ Amadeus token request failed: ${tokenResponse.status} - ${errorText}`);
-      throw new Error(`Amadeus token request failed: ${tokenResponse.status}`);
+  // Apply transportation preferences
+  if (userPreferences.transportation) {
+    const transport = userPreferences.transportation;
+    
+    // Prefer user's favorite airlines
+    if (transport.preferred_airlines && transport.preferred_airlines.length > 0) {
+      enhanced.preferredAirlines = transport.preferred_airlines;
     }
-
-    const tokenData = await tokenResponse.json();
-    console.log(`[${requestId}] ✅ Amadeus access token obtained successfully`);
     
-    // Search for flights
-    console.log(`[${requestId}] 🔍 Searching Amadeus for flights: ${from} → ${to} on ${date}`);
-    
-    const searchResponse = await fetch(`https://test.api.amadeus.com/v2/shopping/flight-offers?originLocationCode=${from}&destinationLocationCode=${to}&departureDate=${date}&adults=${passengers}&travelClass=${travelClass}&max=5`, {
-      headers: {
-        'Authorization': `Bearer ${tokenData.access_token}`
+    // Apply layover tolerance
+    if (transport.layover_tolerance) {
+      if (transport.layover_tolerance === 'max_2_hours') {
+        enhanced.maxLayovers = 1;
+      } else if (transport.layover_tolerance === 'no_layovers') {
+        enhanced.maxLayovers = 0;
       }
-    });
-
-    if (!searchResponse.ok) {
-      const errorText = await searchResponse.text();
-      console.error(`[${requestId}] ❌ Amadeus flight search failed: ${searchResponse.status} - ${errorText}`);
-      
-      // Try to parse the error response for more details
-      let errorDetails = {};
-      try {
-        errorDetails = JSON.parse(errorText);
-      } catch (parseError) {
-        console.log(`[${requestId}] ⚠️ Could not parse Amadeus error response:`, parseError);
-      }
-      
-      // Provide specific error messages based on common Amadeus error codes
-      let userFriendlyMessage = 'Flight search failed';
-      let suggestions = [];
-      
-      if (errorDetails.errors && errorDetails.errors.length > 0) {
-        const error = errorDetails.errors[0];
-        
-        switch (error.code) {
-          case 425: // INVALID DATE
-            if (error.detail && error.detail.includes('past')) {
-              userFriendlyMessage = 'The selected date is in the past';
-              suggestions = [
-                'Please select a future date for your flight search',
-                'Check that you\'re using the correct year',
-                'Try searching for tomorrow or later dates'
-              ];
-            } else {
-              userFriendlyMessage = 'Invalid date format or date';
-              suggestions = [
-                'Use YYYY-MM-DD format (e.g., 2025-01-15)',
-                'Ensure the date is not in the past',
-                'Check that the date is within the next 12 months'
-              ];
-            }
-            break;
-            
-          case 400: // BAD REQUEST
-            if (error.detail && error.detail.includes('origin')) {
-              userFriendlyMessage = 'Invalid departure airport code';
-              suggestions = [
-                'Please use valid 3-letter airport codes (e.g., JFK, LAX, ORD)',
-                'Check the spelling of your departure city',
-                'Ensure the airport code exists in our system'
-              ];
-            } else if (error.detail && error.detail.includes('destination')) {
-              userFriendlyMessage = 'Invalid arrival airport code';
-              suggestions = [
-                'Please use valid 3-letter airport codes (e.g., JFK, LAX, ORD)',
-                'Check the spelling of your arrival city',
-                'Ensure the airport code exists in our system'
-              ];
-            } else {
-              userFriendlyMessage = 'Invalid search parameters';
-              suggestions = [
-                'Check all your search parameters',
-                'Ensure airport codes are valid 3-letter codes',
-                'Verify the date format is YYYY-MM-DD'
-              ];
-            }
-            break;
-            
-          case 401: // UNAUTHORIZED
-            userFriendlyMessage = 'Authentication failed';
-            suggestions = [
-              'This appears to be a system configuration issue',
-              'Please try again later or contact support'
-            ];
-            break;
-            
-          case 429: // TOO MANY REQUESTS
-            userFriendlyMessage = 'Too many search requests';
-            suggestions = [
-              'Please wait a moment before searching again',
-              'Try reducing the frequency of your searches'
-            ];
-            break;
-            
-          case 500: // INTERNAL SERVER ERROR
-          case 502: // BAD GATEWAY
-          case 503: // SERVICE UNAVAILABLE
-            userFriendlyMessage = 'Flight search service temporarily unavailable';
-            suggestions = [
-              'Please try again in a few minutes',
-              'The flight search service may be experiencing issues'
-            ];
-            break;
-            
-          default:
-            userFriendlyMessage = error.title || 'Flight search failed';
-            suggestions = [
-              'Please check your search parameters',
-              'Try again with different dates or routes'
-            ];
-        }
-      }
-      
-      // Log detailed error information
-      logTelemetry('amadeus_search_error_detailed', {
-        requestId,
-        success: false,
-        statusCode: searchResponse.status,
-        errorCode: errorDetails.errors?.[0]?.code,
-        errorTitle: errorDetails.errors?.[0]?.title,
-        errorDetail: errorDetails.errors?.[0]?.detail,
-        searchParams: { from, to, date, passengers, travelClass },
-        userFriendlyMessage,
-        suggestions
-      });
-      
-      // Throw a more informative error
-      const enhancedError = new Error(`Amadeus flight search failed: ${searchResponse.status} - ${userFriendlyMessage}`);
-      enhancedError.statusCode = searchResponse.status;
-      enhancedError.errorCode = errorDetails.errors?.[0]?.code;
-      enhancedError.userFriendlyMessage = userFriendlyMessage;
-      enhancedError.suggestions = suggestions;
-      enhancedError.originalError = errorDetails;
-      
-      throw enhancedError;
     }
-
-    const searchData = await searchResponse.json();
-    console.log(`[${requestId}] ✅ Amadeus flight search completed, found ${searchData.data?.length || 0} flights`);
     
-    // Transform Amadeus data to our format with currency conversion
-    const { convertCurrency } = require('../utils/currency-converter');
-    
-    const flights = await Promise.all((searchData.data || []).map(async (flight, index) => {
-      let price = flight.pricingOptions[0]?.price?.total || "N/A";
-      let currency = flight.pricingOptions[0]?.price?.currency || "EUR";
-      let originalPrice = price;
-      let originalCurrency = currency;
-      let exchangeRate = 1;
-      
-      // Convert price from EUR to USD if needed
-      if (currency === "EUR" && price !== "N/A") {
-        try {
-          const converted = await convertCurrency(price, "EUR", "USD");
-          price = converted.price.toString();
-          currency = "USD";
-          originalPrice = converted.originalPrice;
-          originalCurrency = converted.originalCurrency;
-          exchangeRate = converted.exchangeRate;
-          console.log(`[${requestId}] 💱 Converted flight price from EUR ${originalPrice} to USD ${price} (rate: ${exchangeRate})`);
-        } catch (error) {
-          console.log(`[${requestId}] ⚠️ Currency conversion failed for flight ${index + 1}: ${error.message}`);
-        }
-      }
-      
-      return {
-        flightNumber: flight.itineraries[0]?.segments[0]?.carrierCode + flight.itineraries[0]?.segments[0]?.number || `AM${index + 1}`,
-        route: `${from} → ${to}`,
-        time: `${flight.itineraries[0]?.segments[0]?.departure?.at?.substring(11, 16)} - ${flight.itineraries[0]?.segments[flight.itineraries[0]?.segments.length - 1]?.arrival?.at?.substring(11, 16)}`,
-        stops: flight.itineraries[0]?.segments.length > 1 ? `${flight.itineraries[0]?.segments.length - 1} stop(s)` : "Direct",
-        price: price,
-        currency: currency,
-        seats: flight.numberOfBookableSeats || 1,
-        airline: flight.validatingAirlineCodes?.[0] || "Amadeus Airlines",
-        class: travelClass,
-        // Include conversion info for transparency
-        originalPrice: originalPrice,
-        originalCurrency: originalCurrency,
-        exchangeRate: exchangeRate,
-        amadeusData: flight
-      };
-    }));
-    
-    return flights;
-    
-  } catch (error) {
-    console.error(`[${requestId}] ❌ Amadeus API error:`, error);
-    throw error;
+    // Apply red-eye comfort
+    if (transport.red_eye_comfort === 'avoid') {
+      enhanced.avoidRedEye = true;
+    }
   }
+  
+  // Apply travel style preferences
+  if (userPreferences.travel_style) {
+    const style = userPreferences.travel_style;
+    
+    // Adjust search based on travel pace
+    if (style.travel_pace === 'relaxed') {
+      enhanced.maxLayovers = Math.min(enhanced.maxLayovers || 2, 1);
+    } else if (style.travel_pace === 'fast-paced') {
+      enhanced.maxLayovers = 0;
+    }
+    
+    // Consider adventure level for destination suggestions
+    if (style.adventure_level === 'high' || style.adventure_level === 'extreme') {
+      enhanced.adventureFriendly = true;
+    }
+  }
+  
+  // Apply accommodation preferences if searching for packages
+  if (userPreferences.accommodation && searchParams.includeHotels) {
+    const accommodation = userPreferences.accommodation;
+    enhanced.hotelPreferences = {
+      types: accommodation.preferred_types || [],
+      budgetRange: accommodation.budget_range || 'mid_range',
+      amenities: accommodation.amenities || []
+    };
+  }
+  
+  return enhanced;
 }
 
-// Utility functions
-function generateRequestId() {
-  return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+// Personalize flight results based on user preferences
+function personalizeFlightResults(flights, userPreferences) {
+  return flights.map(flight => {
+    let personalizationScore = 0;
+    const personalizationFactors = [];
+    
+    // Score based on transportation preferences
+    if (userPreferences.transportation) {
+      const transport = userPreferences.transportation;
+      
+      // Airline preference scoring
+      if (transport.preferred_airlines && flight.airline) {
+        const airline = flight.airline.toLowerCase();
+        if (transport.preferred_airlines.some(pref => 
+          airline.includes(pref.toLowerCase())
+        )) {
+          personalizationScore += 20;
+          personalizationFactors.push('preferred_airline');
+        }
+      }
+      
+      // Seat preference scoring
+      if (transport.seat_preference && flight.availableSeats) {
+        if (flight.availableSeats && flight.availableSeats.some(seat => 
+          seat.type === transport.seat_preference
+        )) {
+          personalizationScore += 15;
+          personalizationFactors.push('preferred_seat_available');
+        }
+      }
+      
+      // Red-eye avoidance scoring
+      if (transport.red_eye_comfort === 'avoid' && flight.departureTime) {
+        const hour = new Date(flight.departureTime).getHours();
+        if (hour >= 6 && hour <= 22) { // Daytime flights
+          personalizationScore += 10;
+          personalizationFactors.push('daytime_flight');
+        }
+      }
+    }
+    
+    // Score based on travel style
+    if (userPreferences.travel_style) {
+      const style = userPreferences.travel_style;
+      
+      // Time of day preferences
+      if (style.travel_pace === 'relaxed' && flight.departureTime) {
+        const hour = new Date(flight.departureTime).getHours();
+        if (hour >= 9 && hour <= 17) { // Daytime flights
+          personalizationScore += 10;
+          personalizationFactors.push('daytime_flight');
+        }
+      }
+      
+      // Seasonal preferences
+      if (style.preferred_seasons && flight.departureDate) {
+        const month = new Date(flight.departureDate).getMonth();
+        const season = getSeasonFromMonth(month);
+        if (style.preferred_seasons.includes(season)) {
+          personalizationScore += 15;
+          personalizationFactors.push('preferred_season');
+        }
+      }
+    }
+    
+    return {
+      ...flight,
+      personalizationScore,
+      personalizationFactors,
+      isPersonalized: personalizationScore > 0
+    };
+  }).sort((a, b) => b.personalizationScore - a.personalizationScore);
 }
 
-function logTelemetry(event, data) {
-  const timestamp = new Date().toISOString();
-  const telemetryData = {
-    timestamp,
-    event,
-    ...data,
-    environment: process.env.NODE_ENV || 'production',
-    deployment: process.env.VERCEL_URL || 'local'
-  };
+// Generate personalized response message
+function generatePersonalizedResponse(origin, destination, flights, userProfile, userPreferences) {
+  let message = `Found ${flights?.length || 0} flights from ${origin} to ${destination}`;
   
-  console.log(`[TELEMETRY] ${JSON.stringify(telemetryData)}`);
+  if (userProfile && userPreferences) {
+    message += '\n\n🎯 **Personalized for you:**';
+    
+    // Add personalized insights
+    if (userPreferences.travel_style) {
+      const style = userPreferences.travel_style;
+      message += `\n• Based on your ${style.travel_pace || 'moderate'} travel pace preference`;
+      
+      if (style.preferred_seasons && style.preferred_seasons.length > 0) {
+        message += `\n• Considering your favorite seasons: ${style.preferred_seasons.join(', ')}`;
+      }
+    }
+    
+    if (userPreferences.transportation) {
+      const transport = userPreferences.transportation;
+      if (transport.preferred_airlines && transport.preferred_airlines.length > 0) {
+        message += `\n• Prioritizing your preferred airlines: ${transport.preferred_airlines.join(', ')}`;
+      }
+      
+      if (transport.layover_tolerance) {
+        message += `\n• Respecting your layover tolerance: ${transport.layover_tolerance}`;
+      }
+    }
+    
+    // Add user context
+    if (userProfile.total_trips > 0) {
+      message += `\n• Based on your ${userProfile.total_trips} previous trips`;
+      if (userProfile.average_trip_rating) {
+        message += ` (average rating: ${userProfile.average_trip_rating.toFixed(1)}/5)`;
+      }
+    }
+    
+    // Add personalized recommendations
+    const personalizedFlights = flights?.filter(f => f.isPersonalized) || [];
+    if (personalizedFlights.length > 0) {
+      message += `\n• ${personalizedFlights.length} flights are specially matched to your preferences`;
+    }
+  }
   
-  // In production, you could send this to a logging service like:
-  // - Vercel Analytics
-  // - LogRocket
-  // - Sentry
-  // - Custom logging endpoint
+  return message;
+}
+
+// Helper function to get season from month
+function getSeasonFromMonth(month) {
+  if (month >= 2 && month <= 4) return 'spring';
+  if (month >= 5 && month <= 7) return 'summer';
+  if (month >= 8 && month <= 10) return 'fall';
+  return 'winter';
 }
