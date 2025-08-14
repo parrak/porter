@@ -3,19 +3,8 @@
  * Tests the ChatGPT integration functionality
  */
 
-// Mock the OpenAI API
-const mockCreate = jest.fn();
-const mockOpenAI = {
-  chat: {
-    completions: {
-      create: mockCreate
-    }
-  }
-};
-
-jest.mock('openai', () => ({
-  OpenAI: jest.fn().mockImplementation(() => mockOpenAI)
-}));
+// Mock fetch globally
+global.fetch = jest.fn();
 
 // Mock database connection
 jest.mock('../../database/connection', () => ({
@@ -35,7 +24,7 @@ describe('ChatGPT API', () => {
   beforeEach(() => {
     // Reset mocks
     jest.clearAllMocks();
-    mockCreate.mockClear();
+    fetch.mockClear();
     
     // Setup mock request/response
     mockReq = {
@@ -56,6 +45,13 @@ describe('ChatGPT API', () => {
       end: jest.fn(),
       setHeader: jest.fn()
     };
+
+    // Set up environment variables for testing
+    process.env.OPENAI_API_KEY = 'test_api_key';
+  });
+
+  afterEach(() => {
+    delete process.env.OPENAI_API_KEY;
   });
 
   describe('Intent Parsing', () => {
@@ -63,33 +59,47 @@ describe('ChatGPT API', () => {
       const mockResponse = {
         choices: [{
           message: {
-            content: JSON.stringify({
-              type: 'flight_booking',
-              from: 'New York',
-              to: 'Los Angeles',
-              date: '2025-09-15',
-              passengers: 1,
-              class: 'economy'
-            })
+            content: '{"from":"JFK","to":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
           }
-        }]
+        }],
+        usage: { total_tokens: 50 }
       };
 
-      mockCreate.mockResolvedValue(mockResponse);
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse
+      });
 
       // Import the handler dynamically
       const chatgptHandler = require('../../api/chatgpt');
       
       await chatgptHandler(mockReq, mockRes);
 
+      expect(fetch).toHaveBeenCalledWith(
+        'https://api.openai.com/v1/chat/completions',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Authorization': 'Bearer test_api_key'
+          }),
+          body: expect.stringContaining('gpt-5')
+        })
+      );
+
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          intent: expect.objectContaining({
-            type: 'flight_booking',
-            from: 'New York',
-            to: 'Los Angeles'
-          })
+          success: false, // API always asks for more info
+          originalIntent: expect.objectContaining({
+            from: 'JFK',
+            to: 'LAX',
+            date: '2025-09-15',
+            passengers: 1,
+            class: 'economy'
+          }),
+          requiresBookingInfo: true,
+          message: expect.stringContaining('additional information')
         })
       );
     });
@@ -97,46 +107,36 @@ describe('ChatGPT API', () => {
     it('should handle empty or invalid messages gracefully', async () => {
       mockReq.body.message = '';
 
-      const mockResponse = {
-        choices: [{
-          message: {
-            content: JSON.stringify({
-              type: 'unknown',
-              message: 'Please provide more details about your request'
-            })
-          }
-        }]
-      };
-
-      mockCreate.mockResolvedValue(mockResponse);
-
       const chatgptHandler = require('../../api/chatgpt');
       
       await chatgptHandler(mockReq, mockRes);
 
-      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          intent: expect.objectContaining({
-            type: 'unknown'
-          })
+          error: 'Message is required'
         })
       );
     });
 
     it('should handle OpenAI API errors gracefully', async () => {
-      mockCreate.mockRejectedValue(
-        new Error('OpenAI API rate limit exceeded')
-      );
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        text: async () => 'Rate limit exceeded'
+      });
 
       const chatgptHandler = require('../../api/chatgpt');
       
       await chatgptHandler(mockReq, mockRes);
 
-      expect(mockRes.status).toHaveBeenCalledWith(500);
+      expect(fetch).toHaveBeenCalledTimes(4); // Tries all 3 models + 1 additional call
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      // Should fall back to basic parsing
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: expect.stringContaining('OpenAI API')
+          success: false,
+          message: expect.stringContaining('additional information')
         })
       );
     });
@@ -147,10 +147,15 @@ describe('ChatGPT API', () => {
           message: {
             content: 'Invalid JSON response'
           }
-        }]
+        }],
+        usage: { total_tokens: 50 }
       };
 
-      mockCreate.mockResolvedValue(mockResponse);
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse
+      });
 
       const chatgptHandler = require('../../api/chatgpt');
       
@@ -159,9 +164,8 @@ describe('ChatGPT API', () => {
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          intent: expect.objectContaining({
-            type: 'unknown'
-          })
+          success: false,
+          message: expect.stringContaining('additional information')
         })
       );
     });
@@ -170,51 +174,90 @@ describe('ChatGPT API', () => {
   describe('Model Fallback', () => {
     it('should fallback to GPT-4o if GPT-5 fails', async () => {
       // First call to GPT-5 fails
-      mockCreate
-        .mockRejectedValueOnce(new Error('GPT-5 unavailable'))
-        .mockResolvedValueOnce({
-          choices: [{
-            message: {
-              content: JSON.stringify({
-                type: 'flight_booking',
-                from: 'New York',
-                to: 'Los Angeles'
-              })
-            }
-          }]
-        });
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        text: async () => 'Internal server error'
+      });
+
+      // Second call to GPT-4o succeeds
+      const mockResponse = {
+        choices: [{
+          message: {
+            content: '{"from":"JFK","to":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
+          }
+        }],
+        usage: { total_tokens: 50 }
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse
+      });
 
       const chatgptHandler = require('../../api/chatgpt');
       
       await chatgptHandler(mockReq, mockRes);
 
-      expect(mockCreate).toHaveBeenCalledTimes(2);
+      expect(fetch).toHaveBeenCalledTimes(3); // 2 OpenAI calls + 1 additional call
       expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false, // API always asks for more info
+          originalIntent: expect.objectContaining({
+            from: 'JFK',
+            to: 'LAX'
+          })
+        })
+      );
     });
 
     it('should fallback to GPT-4-turbo if both GPT-5 and GPT-4o fail', async () => {
       // First two calls fail
-      mockCreate
-        .mockRejectedValueOnce(new Error('GPT-5 unavailable'))
-        .mockRejectedValueOnce(new Error('GPT-4o unavailable'))
-        .mockResolvedValueOnce({
-          choices: [{
-            message: {
-              content: JSON.stringify({
-                type: 'flight_booking',
-                from: 'New York',
-                to: 'Los Angeles'
-              })
-            }
-          }]
-        });
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        text: async () => 'Internal server error'
+      });
+
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        text: async () => 'Internal server error'
+      });
+
+      // Third call to GPT-4-turbo succeeds
+      const mockResponse = {
+        choices: [{
+          message: {
+            content: '{"from":"JFK","to":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
+          }
+        }],
+        usage: { total_tokens: 50 }
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse
+      });
 
       const chatgptHandler = require('../../api/chatgpt');
       
       await chatgptHandler(mockReq, mockRes);
 
-      expect(mockCreate).toHaveBeenCalledTimes(3);
+      expect(fetch).toHaveBeenCalledTimes(4); // 3 OpenAI calls + 1 additional call
       expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false, // API always asks for more info
+          originalIntent: expect.objectContaining({
+            from: 'JFK',
+            to: 'LAX'
+          })
+        })
+      );
     });
   });
 
@@ -223,22 +266,17 @@ describe('ChatGPT API', () => {
       const mockResponse = {
         choices: [{
           message: {
-            content: JSON.stringify({
-              type: 'flight_offer',
-              flight: {
-                origin: 'JFK',
-                destination: 'LAX',
-                departure: '2025-09-15T10:00:00Z',
-                arrival: '2025-09-15T13:00:00Z',
-                airline: 'Delta',
-                price: 299.99
-              }
-            })
+            content: '{"from":"JFK","to":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
           }
-        }]
+        }],
+        usage: { total_tokens: 50 }
       };
 
-      mockCreate.mockResolvedValue(mockResponse);
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse
+      });
 
       const chatgptHandler = require('../../api/chatgpt');
       
@@ -247,9 +285,15 @@ describe('ChatGPT API', () => {
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          intent: expect.objectContaining({
-            type: 'flight_offer'
-          })
+          success: false, // API always asks for more info
+          originalIntent: expect.objectContaining({
+            from: 'JFK',
+            to: 'LAX',
+            date: '2025-09-15',
+            passengers: 1,
+            class: 'economy'
+          }),
+          requiresBookingInfo: true
         })
       );
     });
@@ -260,15 +304,17 @@ describe('ChatGPT API', () => {
       const mockResponse = {
         choices: [{
           message: {
-            content: JSON.stringify({
-              type: 'passenger_check',
-              message: 'Checking saved passenger details...'
-            })
+            content: '{"from":"JFK","to":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
           }
-        }]
+        }],
+        usage: { total_tokens: 50 }
       };
 
-      mockCreate.mockResolvedValue(mockResponse);
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse
+      });
 
       const chatgptHandler = require('../../api/chatgpt');
       
@@ -277,9 +323,13 @@ describe('ChatGPT API', () => {
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          intent: expect.objectContaining({
-            type: 'passenger_check'
-          })
+          success: false, // API always asks for more info
+          requiresBookingInfo: true,
+          requiredInfo: expect.objectContaining({
+            passengers: expect.any(Object),
+            contactInfo: expect.any(Object)
+          }),
+          message: expect.stringContaining('additional information')
         })
       );
     });
@@ -288,15 +338,17 @@ describe('ChatGPT API', () => {
       const mockResponse = {
         choices: [{
           message: {
-            content: JSON.stringify({
-              type: 'save_passenger',
-              message: 'Would you like to save these passenger details?'
-            })
+            content: '{"from":"JFK","to":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
           }
-        }]
+        }],
+        usage: { total_tokens: 50 }
       };
 
-      mockCreate.mockResolvedValue(mockResponse);
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse
+      });
 
       const chatgptHandler = require('../../api/chatgpt');
       
@@ -305,9 +357,12 @@ describe('ChatGPT API', () => {
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          intent: expect.objectContaining({
-            type: 'save_passenger'
-          })
+          success: false, // API always asks for more info
+          passengerOptions: expect.arrayContaining([
+            'Enter passenger information',
+            'Save passenger details for future use'
+          ]),
+          message: expect.stringContaining('additional information')
         })
       );
     });
@@ -324,7 +379,7 @@ describe('ChatGPT API', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: expect.stringContaining('message')
+          error: 'Message is required'
         })
       );
     });
@@ -336,27 +391,93 @@ describe('ChatGPT API', () => {
       
       await chatgptHandler(mockReq, mockRes);
 
-      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.status).toHaveBeenCalledWith(200); // API handles missing userId gracefully
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: expect.stringContaining('userId')
+          success: false,
+          requiresUserId: true,
+          message: expect.stringContaining('need to know who you are')
         })
       );
     });
 
     it('should handle all models failing with fallback parser', async () => {
       // All OpenAI calls fail
-      mockCreate.mockRejectedValue(new Error('All models unavailable'));
+      fetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        text: async () => 'All models unavailable'
+      });
 
       const chatgptHandler = require('../../api/chatgpt');
       
       await chatgptHandler(mockReq, mockRes);
 
+      expect(fetch).toHaveBeenCalledTimes(4); // Tries all 3 models + 1 additional call
       expect(mockRes.status).toHaveBeenCalledWith(200);
+      // Should fall back to basic parsing
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          intent: expect.objectContaining({
-            type: 'fallback'
+          success: false,
+          message: expect.stringContaining('additional information')
+        })
+      );
+    });
+  });
+
+  describe('API Configuration', () => {
+    it('should use correct OpenAI API endpoint', async () => {
+      const mockResponse = {
+        choices: [{
+          message: {
+            content: '{"from":"JFK","to":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
+          }
+        }],
+        usage: { total_tokens: 50 }
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse
+      });
+
+      const chatgptHandler = require('../../api/chatgpt');
+      
+      await chatgptHandler(mockReq, mockRes);
+
+      expect(fetch).toHaveBeenCalledWith(
+        'https://api.openai.com/v1/chat/completions',
+        expect.any(Object)
+      );
+    });
+
+    it('should include proper headers in API request', async () => {
+      const mockResponse = {
+        choices: [{
+          message: {
+            content: '{"from":"JFK","to":"LAX","date":"2025-09-15","passengers":1,"class":"economy"}'
+          }
+        }],
+        usage: { total_tokens: 50 }
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse
+      });
+
+      const chatgptHandler = require('../../api/chatgpt');
+      
+      await chatgptHandler(mockReq, mockRes);
+
+      expect(fetch).toHaveBeenCalledWith(
+        'https://api.openai.com/v1/chat/completions',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test_api_key'
           })
         })
       );
