@@ -35,7 +35,12 @@ function isValidEmail(email) {
 
 // Generate a random string
 function generateRandomString(length = 8) {
-  return Math.random().toString(36).substring(2, length + 2);
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
 }
 
 // Format currency
