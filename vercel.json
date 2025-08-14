@@ -1,18 +1,31 @@
 {
-  "buildCommand": "echo 'Static OAuth URLs - no dynamic updates needed'",
-  "outputDirectory": "public",
-  "rewrites": [
+  "version": 2,
+  "builds": [
     {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
+      "src": "public/**/*",
+      "use": "@vercel/static"
     },
     {
-      "source": "/privacy-policy",
-      "destination": "/api/privacy-policy.js"
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/",
+      "dest": "/public/index.html"
     },
     {
-      "source": "/openapi.json",
-      "destination": "/api/openapi.js"
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/privacy-policy",
+      "dest": "/api/privacy-policy.js"
+    },
+    {
+      "src": "/openapi.json",
+      "dest": "/api/openapi.js"
     }
   ]
 }
